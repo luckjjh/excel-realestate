@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>부동산_종합현황.xlsx - Excel</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23217346'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='white' font-family='Arial'>X</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --excel:#217346;--excel-dark:#1a5c38;
+  --tb-bg:#217346;--tb-fg:#fff;--tb-hover:rgba(255,255,255,.18);--tb-sep:rgba(255,255,255,.32);
+  --ribbon-bg:#f3f3f3;--sep:#d4d4d4;--hover:#e8e8e8;--hover-border:#c4c4c4;
+  --txt:#333;--muted:#888;--hb:#e2efda;--sel:#c6e0b4;--up:#d32f2f;--dn:#1565c0;
+}
+body{font-family:'Segoe UI','Malgun Gothic','맑은 고딕',sans-serif;font-size:12px;color:var(--txt);background:#e8e8e8;overflow:hidden;height:100vh;display:flex;flex-direction:column;user-select:none}
+a{color:#0563C1;text-decoration:none}a:hover{text-decoration:underline}
+
+/* ===== TITLEBAR ===== */
+.titlebar{height:38px;background:var(--tb-bg);color:var(--tb-fg);display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:0 6px;gap:12px}
+.quick{display:flex;align-items:center;gap:2px}
+.quick button,.wctl button{width:30px;height:28px;border:0;background:transparent;color:var(--tb-fg);font-size:14px;cursor:pointer;border-radius:3px;display:inline-flex;align-items:center;justify-content:center}
+.quick button:hover,.wctl button:hover{background:var(--tb-hover)}
+.qa-sep{width:1px;height:16px;background:var(--tb-sep);margin:0 3px}
+.book-title{display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;white-space:nowrap}
+.book-title .star{font-size:12px;opacity:.8;cursor:pointer}
+.wctl{display:flex;align-items:center;gap:2px}
+.wctl .close:hover{background:#c42b1c!important}
+.avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#5c8c70,#3d6b53);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:10px;margin-left:4px}
+
+/* ===== TABS ===== */
+.tabs{height:36px;background:var(--ribbon-bg);display:flex;align-items:flex-end;padding:0 8px;gap:0;overflow-x:auto;border-bottom:1px solid var(--sep)}
+.tabs::-webkit-scrollbar{display:none}
+.tabs span{height:35px;padding:8px 14px;cursor:pointer;border-radius:4px 4px 0 0;position:relative;font-size:12.5px;color:var(--txt);white-space:nowrap}
+.tabs span:hover{background:#e8e8e8}
+.tabs span.file-tab{font-weight:400}
+.tabs span.active{color:var(--excel-dark);font-weight:600}
+.tabs span.active::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:2px;background:var(--excel);border-radius:2px}
+
+/* ===== RIBBON ===== */
+.ribbon{background:var(--ribbon-bg);display:flex;gap:0;align-items:stretch;padding:4px 8px;min-height:82px;border-bottom:1px solid var(--sep);overflow-x:auto}
+.ribbon::-webkit-scrollbar{height:4px}
+.group{display:flex;flex-direction:column;padding:0 8px;border-right:1px solid #ddd;flex-shrink:0}
+.group:last-of-type{border-right:none}
+.group .tools{display:flex;align-items:flex-start;gap:2px;flex:1}
+.group-label{text-align:center;color:var(--muted);font-size:10px;padding:2px 0 1px;border-top:1px solid #e4e4e4;margin-top:2px}
+.tool{display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:3px;background:transparent;cursor:pointer;color:var(--txt);font:inherit}
+.tool:hover{background:var(--hover);border-color:var(--hover-border)}
+.tool.big{flex-direction:column;gap:2px;width:50px;height:60px;padding:3px 2px;font-size:11px}
+.tool.big .ic{font-size:20px;height:26px;display:flex;align-items:center;justify-content:center}
+.tool.big .lbl{font-size:10px;line-height:1.15;text-align:center}
+.cmdcol{display:flex;flex-direction:column;gap:1px;height:60px;padding-top:1px}
+.split{display:inline-flex;align-items:center;gap:4px;height:19px;padding:0 6px;border:1px solid transparent;border-radius:3px;background:transparent;cursor:pointer;font:inherit;color:var(--txt);font-size:11.5px;white-space:nowrap}
+.split:hover{background:var(--hover);border-color:var(--hover-border)}
+.split .caret{font-size:8px;color:var(--muted)}
+.selrow{display:flex;gap:3px;margin-bottom:2px;padding-top:1px}
+.combo{border:1px solid var(--hover-border);border-radius:3px;padding:2px 6px;font-size:11px;background:#fff;cursor:pointer;display:flex;align-items:center;gap:4px}
+.combo.small{min-width:42px}
+.combo select{border:none;background:transparent;font:inherit;outline:none;cursor:pointer}
+.fontrow{display:flex;gap:2px}
+.fontrow .tool{width:24px;height:22px;font-size:12px}
+.ribbon-spacer{flex:1 1 auto;min-width:8px}
+.ribbon-actions{display:flex;align-items:center;gap:6px;padding:0 4px;flex-shrink:0}
+.ribbon-actions button,.ribbon-actions a{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;border:1px solid transparent;border-radius:4px;cursor:pointer;font:inherit;color:var(--txt);background:transparent;text-decoration:none;font-size:11.5px;white-space:nowrap}
+.ribbon-actions button:hover,.ribbon-actions a:hover{background:var(--hover);border-color:var(--hover-border)}
+.ribbon-actions .chat-btn{background:var(--excel);color:#fff;border:none;position:relative;font-weight:600}
+.ribbon-actions .chat-btn:hover{background:var(--excel-dark)}
+.ribbon-actions .visitor{font-size:10px;color:var(--muted);padding:0 4px}
+
+/* ===== FORMULA BAR ===== */
+.fbar{background:#fff;border-bottom:1px solid var(--sep);display:flex;align-items:center;height:26px;padding:0 4px;gap:0}
+.fbar .namebox{width:80px;border:1px solid var(--sep);padding:2px 6px;font-size:11px;text-align:center}
+.fbar .fxmark{color:#444;font-style:italic;font-weight:bold;margin:0 6px;font-size:12px}
+.fbar .fxbox{flex:1;border:1px solid var(--sep);padding:2px 6px;font-size:11px;color:#555}
+.fbar .fx-meta{display:flex;align-items:center;gap:8px;margin-left:8px;font-size:10px;color:var(--muted);flex-shrink:0}
+.fbar .fx-meta .badge{background:var(--hb);padding:1px 8px;border-radius:10px;font-weight:600;color:var(--excel)}
+
+/* ===== MAIN CONTENT ===== */
+.main{flex:1;display:flex;overflow:hidden;background:#fff}
+.sheet-area{flex:1;overflow:auto;position:relative}
+table.xl{border-collapse:collapse;width:100%;font-size:12px}
+table.xl th,table.xl td{border:1px solid var(--sep);padding:4px 8px;white-space:nowrap;text-align:left;height:24px}
+table.xl th{background:var(--hb);font-weight:600;position:sticky;top:0;z-index:2}
+table.xl .rn{background:#f8f8f8;color:#888;text-align:center;width:40px;font-size:11px;border-right:2px solid #b0b0b0}
+table.xl .ch{background:var(--hb);text-align:center;font-weight:600;min-width:80px;cursor:pointer}
+table.xl .ch:hover{background:var(--sel)}
+table.xl td{cursor:cell}
+table.xl tr:hover td:not(.rn){background:#e8f5e9}
+.vu{color:var(--up);font-weight:600}.vd{color:var(--dn);font-weight:600}.vf{color:#888}
+.b{font-weight:700}.r{text-align:right}.c{text-align:center}
+.tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.t-red{background:#fce4ec;color:#c62828}.t-blue{background:#e3f2fd;color:#1565c0}
+.t-green{background:#e8f5e9;color:#2e7d32}.t-orange{background:#fff3e0;color:#e65100}
+.t-purple{background:#f3e5f5;color:#6a1b9a}.t-gray{background:#f5f5f5;color:#616161}
+.hdr-row td{background:var(--hb)!important;font-weight:600}
+.section-row td{background:var(--sel)!important;font-weight:700}
+
+/* ===== RIGHT PANEL ===== */
+.right-panel{width:420px;border-left:2px solid #b0b0b0;display:flex;flex-direction:column;background:#fff;overflow:hidden}
+.right-panel .ph{background:var(--hb);padding:6px 10px;font-weight:700;font-size:12px;border-bottom:1px solid var(--sep);display:flex;justify-content:space-between}
+.ptabs{display:flex;background:#f5f5f5;border-bottom:1px solid #ddd}
+.ptab{padding:6px 14px;font-size:11px;cursor:pointer;border-bottom:2px solid transparent;color:#666}
+.ptab.active{color:var(--excel);border-bottom-color:var(--excel);font-weight:600}
+.ptab:hover{background:#e8e8e8}
+.news-list{flex:1;overflow-y:auto}
+.ni{padding:10px 12px;border-bottom:1px solid #eee;cursor:pointer;font-size:11px;line-height:1.5}
+.ni:hover{background:#f8fdf8}
+.ni .nt{font-size:10px;color:var(--excel);font-weight:600;margin-right:4px}
+.ni .nm{color:#999;font-size:10px;margin-right:6px}
+.ni .nl{color:#333;font-weight:500}
+.ni .ns{color:#888;font-size:10px;margin-top:4px;display:none;line-height:1.4}
+.ni:hover .ns{display:block}
+.loading{padding:30px;text-align:center;color:#888;font-size:12px}
+.error-box{padding:20px;text-align:center;color:#c00;font-size:12px}
+.guide-box{padding:20px 30px;color:#555;font-size:12px;line-height:1.8}
+.guide-box h3{color:var(--excel);margin-bottom:8px}
+.guide-box code{background:#f0f0f0;padding:2px 6px;border-radius:3px;font-size:11px}
+
+/* ===== FILTER BAR ===== */
+.filter-bar{display:flex;gap:8px;align-items:center;padding:6px 10px;background:#f9f9f9;border-bottom:1px solid #eee;font-size:11px;flex-wrap:wrap}
+.filter-bar label{color:var(--muted);font-weight:600}
+.filter-bar select,.filter-bar input{border:1px solid #c4c4c4;border-radius:3px;padding:3px 6px;font-size:11px;background:#fff}
+.filter-bar button{padding:3px 12px;border:1px solid #c4c4c4;border-radius:3px;background:#fff;cursor:pointer;font-size:11px}
+.filter-bar button:hover{background:#e8e8e8}
+.filter-bar button.primary{background:var(--excel);color:#fff;border-color:var(--excel)}
+.filter-bar button.primary:hover{background:var(--excel-dark)}
+.filter-bar .count{color:var(--excel);font-weight:600;margin-left:auto}
+
+/* ===== SHEET TABS ===== */
+.sheet-tabs{background:#f0f0f0;border-top:1px solid #b0b0b0;display:flex;align-items:center;height:28px;padding:0 4px}
+.sheet-tabs .nav{display:flex;gap:2px;margin-right:8px}
+.sheet-tabs .nav span{width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#888;font-size:10px;border-radius:2px}
+.stab{padding:4px 16px;font-size:11px;cursor:pointer;border:1px solid transparent;border-bottom:none;background:#e7e6e6;color:#555}
+.stab.active{background:#fff;color:var(--excel);font-weight:600;border-color:#b0b0b0;border-bottom:1px solid #fff;margin-bottom:-1px;z-index:1}
+.stab:hover:not(.active){background:#ddd}
+
+/* ===== STATUS BAR ===== */
+.status-bar{background:var(--excel);color:#fff;height:22px;display:flex;align-items:center;padding:0 12px;font-size:11px;justify-content:space-between}
+.status-bar .sl{display:flex;gap:16px}
+.status-bar .sr{display:flex;gap:8px;align-items:center}
+.status-bar .sr input{width:80px;accent-color:#fff}
+
+/* ===== CHAT ===== */
+.chat-panel{position:fixed;right:16px;bottom:40px;width:380px;height:500px;background:#fff;border:1px solid #ccc;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,.2);display:none;flex-direction:column;z-index:100;overflow:hidden}
+.chat-panel.open{display:flex}
+.chat-head{background:var(--excel);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.chat-head .chat-title{font-size:13px;font-weight:600}
+.chat-head .chat-title small{font-size:10px;opacity:.8;margin-left:8px;font-weight:400}
+.chat-head .live-dot{display:inline-block;width:6px;height:6px;background:#4caf50;border-radius:50%;margin-right:4px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.chat-head button{background:none;border:none;color:#fff;cursor:pointer;font-size:18px;opacity:.8}
+.chat-head button:hover{opacity:1}
+.chat-body{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:2px;font-size:12px;background:#fafafa}
+.chat-msg{display:flex;gap:6px;padding:4px 0;line-height:1.5}
+.chat-msg .chat-nick{font-weight:600;color:var(--excel);white-space:nowrap}
+.chat-msg .chat-text{color:#333;word-break:break-word}
+.chat-msg .chat-time{font-size:9px;color:#bbb;white-space:nowrap;margin-left:auto}
+.chat-msg.mine .chat-nick{color:#555}
+.chat-system{text-align:center;color:#999;font-size:11px;padding:8px 0}
+.chat-composer{display:grid;grid-template-columns:84px 1fr 50px;gap:4px;padding:8px;border-top:1px solid #eee;background:#fff}
+.chat-composer input{border:1px solid #ddd;border-radius:4px;padding:6px 8px;font-size:12px;outline:none}
+.chat-composer input:focus{border-color:var(--excel)}
+.chat-composer .nick-in{font-size:11px}
+.chat-composer .chat-send{background:var(--excel);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600}
+.chat-composer .chat-send:hover{background:var(--excel-dark)}
+.chat-unread{position:absolute;top:-5px;right:-5px;background:var(--up);color:#fff;font-size:9px;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:600}
+
+/* ===== CHART MODAL ===== */
+.chart-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:none;align-items:center;justify-content:center}
+.chart-overlay.open{display:flex}
+.chart-modal{background:#fff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.25);width:720px;max-width:92vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+.chart-modal .cm-head{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #eee}
+.chart-modal .cm-head h3{font-size:15px;color:var(--txt);font-weight:700}
+.chart-modal .cm-head h3 small{font-size:11px;color:var(--muted);font-weight:400;margin-left:8px}
+.chart-modal .cm-head button{background:none;border:none;font-size:20px;cursor:pointer;color:#888;padding:4px 8px}
+.chart-modal .cm-head button:hover{color:#333}
+.chart-modal .cm-body{padding:20px;overflow-y:auto;flex:1}
+.chart-canvas{width:100%;height:280px;position:relative;border:1px solid #eee;border-radius:4px;background:#fafafa;margin-bottom:16px}
+.chart-canvas svg{width:100%;height:100%}
+.chart-legend{display:flex;gap:16px;font-size:11px;color:var(--muted);padding:4px 0 12px}
+.chart-legend span{display:flex;align-items:center;gap:4px}
+.chart-legend .dot{width:8px;height:8px;border-radius:50%}
+.chart-tbl{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+.chart-tbl th,.chart-tbl td{border:1px solid #eee;padding:4px 8px;text-align:left}
+.chart-tbl th{background:#f5f5f5;font-weight:600}
+.chart-tbl td.r{text-align:right}
+.chart-loading{text-align:center;padding:40px;color:var(--muted)}
+.apt-link{color:var(--excel);cursor:pointer;text-decoration:underline;font-weight:700}
+.apt-link:hover{color:var(--excel-dark)}
+
+.sheet{display:none}.sheet.active{display:block}
+::-webkit-scrollbar{width:12px;height:12px}::-webkit-scrollbar-track{background:#f1f1f1}::-webkit-scrollbar-thumb{background:#c1c1c1}
+@media(max-width:900px){.right-panel{display:none}.ribbon{overflow-x:auto;min-height:auto}}
+</style>
+</head>
+<body>
+
+<!-- ===== TITLEBAR ===== -->
+<div class="titlebar">
+  <div class="quick">
+    <button title="저장 (Ctrl+S)">💾</button>
+    <span class="qa-sep"></span>
+    <button title="실행 취소 (Ctrl+Z)">↶</button>
+    <button title="다시 실행 (Ctrl+Y)">↷</button>
+    <span class="qa-sep"></span>
+    <button title="빠른 실행">⌄</button>
+  </div>
+  <div class="book-title">
+    <span class="star">☆</span>
+    <span id="docTitle">부동산_종합현황.xlsx</span>
+  </div>
+  <div class="wctl">
+    <button title="최소화">—</button>
+    <button title="최대화">▢</button>
+    <button class="close" title="닫기">✕</button>
+    <div class="avatar" title="계정">JH</div>
+  </div>
+</div>
+
+<!-- ===== TABS ===== -->
+<div class="tabs">
+  <span class="file-tab">파일</span>
+  <span class="active">홈</span>
+  <span>삽입</span>
+  <span>그리기</span>
+  <span>페이지 레이아웃</span>
+  <span>수식</span>
+  <span>데이터</span>
+  <span>검토</span>
+  <span>보기</span>
+  <span>자동화</span>
+  <span>도움말</span>
+</div>
+
+<!-- ===== RIBBON ===== -->
+<div class="ribbon">
+  <div class="group">
+    <div class="tools">
+      <button class="tool big"><span class="ic">📋</span><span class="lbl">붙여<br>넣기</span></button>
+      <div class="cmdcol">
+        <button class="split">✂ 잘라내기</button>
+        <button class="split">📄 복사</button>
+        <button class="split">🖌 서식 복사</button>
+      </div>
+    </div>
+    <div class="group-label">클립보드</div>
+  </div>
+  <div class="group">
+    <div>
+      <div class="selrow">
+        <div class="combo"><select><option>맑은 고딕</option><option>굴림체</option><option>돋움체</option><option>바탕체</option></select></div>
+        <div class="combo small">11 ▾</div>
+        <button class="tool" style="width:24px;height:22px">가⁺</button>
+        <button class="tool" style="width:24px;height:22px">가⁻</button>
+      </div>
+      <div class="fontrow">
+        <button class="tool"><b>가</b></button>
+        <button class="tool"><i>가</i></button>
+        <button class="tool"><u>가</u></button>
+        <button class="tool">▦</button>
+        <button class="tool">🎨</button>
+        <button class="tool">A</button>
+      </div>
+    </div>
+    <div class="group-label">글꼴</div>
+  </div>
+  <div class="group">
+    <div class="tools">
+      <div class="cmdcol">
+        <button class="split">↺ 병합하고 가운데 ▾</button>
+      </div>
+    </div>
+    <div class="group-label">맞춤</div>
+  </div>
+  <div class="group">
+    <div>
+      <div class="selrow"><div class="combo" style="min-width:100px">일반 ▾</div></div>
+      <div class="fontrow">
+        <button class="tool">₩</button>
+        <button class="tool">%</button>
+        <button class="tool">,</button>
+      </div>
+    </div>
+    <div class="group-label">표시 형식</div>
+  </div>
+  <div class="group">
+    <div class="tools">
+      <button class="tool big"><span class="ic">📊</span><span class="lbl">조건부<br>서식</span></button>
+      <button class="tool big"><span class="ic">📋</span><span class="lbl">표 서식</span></button>
+    </div>
+    <div class="group-label">스타일</div>
+  </div>
+  <div class="group">
+    <div class="tools">
+      <div class="cmdcol">
+        <button class="split">삽입 ▾</button>
+        <button class="split">삭제 ▾</button>
+        <button class="split">서식 ▾</button>
+      </div>
+    </div>
+    <div class="group-label">셀</div>
+  </div>
+  <div class="group">
+    <div class="tools">
+      <button class="tool big" onclick="refreshAll()"><span class="ic">🔄</span><span class="lbl">새로<br>고침</span></button>
+      <div class="cmdcol">
+        <button class="split">연결</button>
+        <button class="split">쿼리</button>
+      </div>
+    </div>
+    <div class="group-label">데이터</div>
+  </div>
+  <div class="ribbon-spacer"></div>
+  <div class="ribbon-actions">
+    <span class="visitor" id="visitorCount"></span>
+    <button onclick="toggleChat()" class="chat-btn">💬 채팅 <span id="chatUnread" class="chat-unread" style="display:none">0</span></button>
+  </div>
+</div>
+
+<!-- ===== CHAT PANEL ===== -->
+<section class="chat-panel" id="chatPanel">
+  <header class="chat-head">
+    <div class="chat-title"><span class="live-dot"></span>실시간 채팅 <small id="chatOnline"></small></div>
+    <div><button onclick="toggleChat()">✕</button></div>
+  </header>
+  <div class="chat-body" id="chatMessages">
+    <div class="chat-system">부동산 실시간 채팅방입니다. 서로 존중하며 대화해주세요.</div>
+  </div>
+  <form class="chat-composer" onsubmit="sendChat(event)">
+    <input class="nick-in" id="chatNickname" maxlength="24" placeholder="닉네임">
+    <input id="chatInput" maxlength="280" placeholder="메시지 입력" autocomplete="off">
+    <button type="submit" class="chat-send">전송</button>
+  </form>
+</section>
+
+<!-- ===== CHART MODAL ===== -->
+<div class="chart-overlay" id="chartOverlay" onclick="if(event.target===this)closeChart()">
+  <div class="chart-modal">
+    <div class="cm-head">
+      <h3 id="chartTitle">아파트 가격 추이</h3>
+      <button onclick="closeChart()">✕</button>
+    </div>
+    <div class="cm-body" id="chartBody">
+      <div class="chart-loading">차트 데이터를 불러오는 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FORMULA BAR ===== -->
+<div class="fbar">
+  <div class="namebox">A1</div>
+  <div class="fxmark">fx</div>
+  <div class="fxbox" id="fxContent">=REALESTATE_LIVE()</div>
+  <div class="fx-meta">
+    <span>부동산 종합현황</span>
+    <span class="badge" id="fxBadge">실시간</span>
+  </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+  <div class="sheet-area">
+
+    <!-- 주요지표 -->
+    <div class="sheet active" id="s-indicators">
+      <table class="xl"><thead>
+        <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:180px">B</th><th class="ch" style="width:120px">C</th><th class="ch" style="width:100px">D</th><th class="ch" style="width:140px">E</th></tr>
+        <tr><td class="rn">1</td><td colspan="5" class="section-row" style="background:var(--sel)">실거래 기반 주요지표 <span style="color:#888;font-size:10px" id="indMonth"></span></td></tr>
+        <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">지역</td><td class="b r">평균 매매가</td><td class="b r">84㎡ 평균</td><td class="b r">거래건수(당월)</td></tr>
+      </thead><tbody id="indBody"><tr><td colspan="6" class="loading">데이터 불러오는 중...</td></tr></tbody></table>
+    </div>
+
+    <!-- 정책뉴스 -->
+    <div class="sheet" id="s-policy">
+      <table class="xl"><thead>
+        <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:90px">B</th><th class="ch" style="width:80px">C</th><th class="ch" style="width:350px">D</th><th class="ch" style="width:200px">E</th></tr>
+        <tr><td class="rn">1</td><td colspan="5" class="section-row">부동산 정책 뉴스 <span style="color:#888;font-size:10px">실시간 크롤링</span></td></tr>
+        <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">시간</td><td class="b">출처</td><td class="b">헤드라인</td><td class="b">요약</td></tr>
+      </thead><tbody id="polBody"><tr><td colspan="6" class="loading">뉴스 불러오는 중...</td></tr></tbody></table>
+    </div>
+
+    <!-- 실거래 내역 -->
+    <div class="sheet" id="s-trades">
+      <div class="filter-bar">
+        <label>지역:</label><select id="areaSelect"></select>
+        <label>거래월:</label><select id="monthSelect"></select>
+        <label>면적:</label>
+        <select id="filterArea">
+          <option value="all">전체</option>
+          <option value="small">~59㎡ (소형)</option>
+          <option value="mid">60~84㎡ (중형)</option>
+          <option value="large">85~102㎡ (중대형)</option>
+          <option value="xlarge">102㎡~ (대형)</option>
+        </select>
+        <label>가격:</label>
+        <select id="filterPrice">
+          <option value="all">전체</option>
+          <option value="p5">~5억</option>
+          <option value="p10">5~10억</option>
+          <option value="p20">10~20억</option>
+          <option value="p30">20~30억</option>
+          <option value="p30p">30억~</option>
+        </select>
+        <label>정렬:</label>
+        <select id="filterSort">
+          <option value="date">최신순</option>
+          <option value="price_desc">가격 높은순</option>
+          <option value="price_asc">가격 낮은순</option>
+          <option value="area_desc">면적 큰순</option>
+        </select>
+        <button class="primary" onclick="loadTrades()">조회</button>
+        <span class="count" id="tradeStatus"></span>
+      </div>
+      <table class="xl"><thead>
+        <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:80px">B</th><th class="ch" style="width:160px">C</th><th class="ch" style="width:70px">D</th><th class="ch" style="width:50px">E</th><th class="ch" style="width:110px">F</th><th class="ch" style="width:80px">G</th><th class="ch" style="width:60px">H</th><th class="ch" style="width:100px">I</th></tr>
+        <tr><td class="rn">1</td><td colspan="9" class="section-row">아파트 매매 실거래 내역 <span style="color:#888;font-size:10px">출처: 국토교통부 실거래가 공개시스템</span></td></tr>
+        <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">지역</td><td class="b">아파트명</td><td class="c b">전용면적</td><td class="c b">층</td><td class="r b">거래금액</td><td class="c b">거래일</td><td class="c b">건축년도</td><td class="b">법정동</td></tr>
+      </thead><tbody id="trBody"><tr><td colspan="10" class="loading">지역을 선택하고 조회하세요</td></tr></tbody></table>
+    </div>
+
+    <!-- 경매정보 -->
+    <div class="sheet" id="s-auction">
+      <div class="filter-bar">
+        <label>지역:</label>
+        <select id="aucSido">
+          <option value="서울특별시">서울</option>
+          <option value="경기도">경기</option>
+          <option value="부산광역시">부산</option>
+          <option value="인천광역시">인천</option>
+          <option value="대구광역시">대구</option>
+          <option value="대전광역시">대전</option>
+          <option value="광주광역시">광주</option>
+          <option value="울산광역시">울산</option>
+        </select>
+        <button class="primary" onclick="loadAuction()">검색</button>
+        <span class="count" id="aucStatus"></span>
+        <span style="color:#888;font-size:10px;margin-left:8px">출처: 법원경매정보 (courtauction.go.kr) 크롤링</span>
+      </div>
+      <table class="xl"><thead>
+        <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:120px">B</th><th class="ch" style="width:250px">C</th><th class="ch" style="width:60px">D</th><th class="ch" style="width:120px">E</th><th class="ch" style="width:120px">F</th><th class="ch" style="width:90px">G</th><th class="ch" style="width:80px">H</th></tr>
+        <tr><td class="rn">1</td><td colspan="8" class="section-row">법원경매 물건 목록 <span style="color:#888;font-size:10px">크롤링 데이터 (최초 조회 시 30초 소요)</span></td></tr>
+        <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">사건번호</td><td class="b">소재지</td><td class="c b">용도</td><td class="r b">감정가</td><td class="r b">최저가</td><td class="c b">매각기일</td><td class="c b">상태</td></tr>
+      </thead><tbody id="aucBody"><tr><td colspan="9" class="loading">지역을 선택하고 검색하세요 (최초 조회 시 30초 소요)</td></tr></tbody></table>
+      <table class="xl" style="margin-top:16px"><thead>
+        <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:90px">B</th><th class="ch" style="width:80px">C</th><th class="ch" style="width:350px">D</th><th class="ch" style="width:200px">E</th></tr>
+        <tr><td class="rn">1</td><td colspan="5" class="section-row">경매 관련 뉴스 <span style="color:#888;font-size:10px">실시간</span></td></tr>
+        <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">시간</td><td class="b">출처</td><td class="b">헤드라인</td><td class="b">요약</td></tr>
+      </thead><tbody id="aucNewsBody"><tr><td colspan="6" class="loading">뉴스 불러오는 중...</td></tr></tbody></table>
+    </div>
+
+    <!-- 청약일정 -->
+    <div class="sheet" id="s-subscription">
+      <div class="filter-bar" id="subFilterBar">
+        <label>지역:</label>
+        <select id="subFilterRegion"><option value="all">전체</option></select>
+        <label>구분:</label>
+        <select id="subFilterType">
+          <option value="all">전체</option>
+          <option value="민영">민영</option>
+          <option value="공공">공공</option>
+          <option value="줍줍">줍줍(잔여세대)</option>
+        </select>
+        <label>상태:</label>
+        <select id="subFilterStatus">
+          <option value="all">전체</option>
+          <option value="접수중">접수중</option>
+          <option value="예정">예정</option>
+          <option value="마감">마감</option>
+        </select>
+        <span class="count" id="subCount"></span>
+      </div>
+      <table class="xl"><thead>
+        <tr><th class="rn"></th><th class="ch" style="width:35px">A</th><th class="ch" style="width:160px">B</th><th class="ch" style="width:55px">C</th><th class="ch" style="width:45px">D</th><th class="ch" style="width:50px">E</th><th class="ch" style="width:90px">F</th><th class="ch" style="width:90px">G</th><th class="ch" style="width:75px">H</th><th class="ch" style="width:80px">I</th><th class="ch" style="width:120px">J</th><th class="ch" style="width:45px">K</th></tr>
+        <tr><td class="rn">1</td><td colspan="11" class="section-row">APT 청약/분양 일정 <span style="color:#888;font-size:10px">출처: 한국부동산원 청약홈 API (실시간) | 줍줍 포함</span></td></tr>
+        <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">단지명</td><td class="b">지역</td><td class="c b">세대</td><td class="c b">구분</td><td class="c b">특별공급</td><td class="c b">1순위/2순위</td><td class="c b">당첨발표</td><td class="r b">분양최고가</td><td class="c b">경쟁률</td><td class="c b">상세</td></tr>
+      </thead><tbody id="subBody"><tr><td colspan="12" class="loading">청약 데이터 불러오는 중...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- News Panel -->
+  <div class="right-panel">
+    <div class="ph"><span>부동산 뉴스</span><span style="color:#888;font-size:10px" id="newsCount"></span></div>
+    <div class="ptabs">
+      <div class="ptab active" onclick="filterNews('all',this)">전체</div>
+      <div class="ptab" onclick="filterNews('policy',this)">정책</div>
+      <div class="ptab" onclick="filterNews('market',this)">시세</div>
+      <div class="ptab" onclick="filterNews('auction',this)">경매</div>
+      <div class="ptab" onclick="filterNews('supply',this)">공급</div>
+    </div>
+    <div class="news-list" id="newsList"><div class="loading">뉴스 불러오는 중...</div></div>
+  </div>
+</div>
+
+<div class="sheet-tabs">
+  <div class="nav"><span>◄</span><span>►</span></div>
+  <div class="stab active" onclick="switchSheet('indicators',this)">주요지표</div>
+  <div class="stab" onclick="switchSheet('policy',this)">정책뉴스</div>
+  <div class="stab" onclick="switchSheet('trades',this)">실거래내역</div>
+  <div class="stab" onclick="switchSheet('auction',this)">경매정보</div>
+  <div class="stab" onclick="switchSheet('subscription',this)">청약정보</div>
+</div>
+
+<div class="status-bar">
+  <div class="sl"><span id="statusReady">준비</span><span>|</span><span id="statusInfo">서버 연결 중...</span></div>
+  <div class="sr"><span>−</span><input type="range" min="50" max="200" value="100" id="zoomSlider"><span>+</span><span id="zoomVal">100%</span></div>
+</div>
+
+<script>
+const CAT={policy:'정책',market:'시세',auction:'경매',supply:'공급'};
+let AREAS={},allNews=[],hasApiKey=false,rawTrades=[];
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmtPrice(s){const n=parseInt(String(s).replace(/[, ]/g,''));if(isNaN(n))return s;if(n>=10000){const e=n/10000;return e%1===0?e+'억':e.toFixed(1)+'억'}return n.toLocaleString()+'만'}
+
+async function init(){
+  document.getElementById('docTitle').textContent=`부동산_종합현황_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.xlsx`;
+  try{
+    const[cfg,areas]=await Promise.all([fetch('/api/config').then(r=>r.json()),fetch('/api/areas').then(r=>r.json())]);
+    hasApiKey=cfg.hasApiKey;AREAS=areas;
+    document.getElementById('statusInfo').textContent=hasApiKey?'실거래 API 연결됨':'뉴스만 활성 (실거래 API 키 미설정)';
+    setupAreaSelect();loadNews();
+    if(hasApiKey){loadSummary();loadSubscriptions()}else showNoKey('indBody',6);
+  }catch{document.getElementById('statusInfo').textContent='서버 연결 실패';document.getElementById('newsList').innerHTML='<div class="error-box">서버에 연결할 수 없습니다</div>'}
+}
+
+function setupAreaSelect(){
+  const sel=document.getElementById('areaSelect');
+  const s=Object.keys(AREAS).filter(c=>c.startsWith('11')),g=Object.keys(AREAS).filter(c=>c.startsWith('41'));
+  let h='<optgroup label="서울">';s.forEach(c=>h+=`<option value="${c}">${AREAS[c]}</option>`);
+  h+='</optgroup><optgroup label="경기">';g.forEach(c=>h+=`<option value="${c}">${AREAS[c]}</option>`);
+  sel.innerHTML=h+'</optgroup>';
+  const ms=document.getElementById('monthSelect'),now=new Date();let mh='';
+  for(let i=0;i<6;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const ym=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`;mh+=`<option value="${ym}">${d.getFullYear()}년 ${d.getMonth()+1}월</option>`}
+  ms.innerHTML=mh;
+}
+
+async function loadNews(){
+  const el=document.getElementById('newsList');
+  try{
+    const{ok,data}=await fetch('/api/news').then(r=>r.json());
+    if(!ok||!data.length){el.innerHTML='<div class="loading">뉴스를 가져올 수 없습니다</div>';return}
+    allNews=data;document.getElementById('newsCount').textContent=`${data.length}건`;
+    renderNewsList(data);renderPolicyTab(data.filter(n=>n.cat==='policy'));
+    renderCatTab('aucNewsBody',data.filter(n=>n.cat==='auction'));
+  }catch(e){el.innerHTML=`<div class="error-box">${esc(e.message)}</div>`}
+}
+function renderNewsList(items){document.getElementById('newsList').innerHTML=items.map(n=>`<div class="ni" data-cat="${n.cat}"><span class="nm">${esc(n.time)}</span><span class="nt">[${CAT[n.cat]||''}]</span>${n.link?`<a href="${esc(n.link)}" target="_blank" class="nl">${esc(n.title)}</a>`:`<span class="nl">${esc(n.title)}</span>`}${n.summary?`<div class="ns">${esc(n.summary)}</div>`:''}</div>`).join('')}
+function renderPolicyTab(items){const el=document.getElementById('polBody');if(!items.length){el.innerHTML='<tr><td colspan="6" class="loading">정책 뉴스 없음</td></tr>';return}el.innerHTML=items.map((n,i)=>`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td>${esc(n.time)}</td><td>${esc(n.source)}</td><td class="b">${n.link?`<a href="${esc(n.link)}" target="_blank">${esc(n.title)}</a>`:esc(n.title)}</td><td style="color:#888">${esc(n.summary)}</td></tr>`).join('')}
+function renderCatTab(id,items){const el=document.getElementById(id);if(!items.length){el.innerHTML='<tr><td colspan="6" class="loading">관련 뉴스 없음</td></tr>';return}el.innerHTML=items.map((n,i)=>`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td>${esc(n.time)}</td><td>${esc(n.source)}</td><td class="b">${n.link?`<a href="${esc(n.link)}" target="_blank">${esc(n.title)}</a>`:esc(n.title)}</td><td style="color:#888">${esc(n.summary)}</td></tr>`).join('')}
+function filterNews(cat,el){document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderNewsList(cat==='all'?allNews:allNews.filter(n=>n.cat===cat))}
+
+async function loadSummary(){
+  const el=document.getElementById('indBody');
+  try{const{ok,data,month}=await fetch('/api/summary').then(r=>r.json());if(!ok){showNoKey('indBody',6);return}if(!data.length){el.innerHTML='<tr><td colspan="6" class="loading">실거래 데이터가 아직 없습니다</td></tr>';return}
+  document.getElementById('indMonth').textContent=`${month.slice(0,4)}년 ${parseInt(month.slice(4))}월 실거래 기준`;
+  el.innerHTML=data.map((d,i)=>`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td class="b">${esc(d.name)}</td><td class="r b">${fmtPrice(d.avgPrice)}</td><td class="r">${d.avg84?fmtPrice(d.avg84):'-'}</td><td class="r">${d.count}건</td></tr>`).join('')}catch(e){el.innerHTML=`<tr><td colspan="6" class="error-box">${esc(e.message)}</td></tr>`}
+}
+
+// ---- Trades with filtering ----
+async function loadTrades(){
+  if(!hasApiKey){showNoKey('trBody',10);return}
+  const area=document.getElementById('areaSelect').value,month=document.getElementById('monthSelect').value;
+  const el=document.getElementById('trBody'),st=document.getElementById('tradeStatus');
+  el.innerHTML='<tr><td colspan="10" class="loading">실거래 데이터 조회중...</td></tr>';st.textContent='조회중...';
+  try{
+    const{ok,data,areaName,error}=await fetch(`/api/trades?area=${area}&month=${month}`).then(r=>r.json());
+    if(!ok)throw new Error(error);
+    rawTrades=data.map(t=>({...t,_area:parseFloat(t.area)||0,_price:parseInt(String(t.price).replace(/[, ]/g,''))||0,_areaName:areaName}));
+    applyFilters();
+  }catch(e){el.innerHTML=`<tr><td colspan="10" class="error-box">조회 실패: ${esc(e.message)}</td></tr>`;st.textContent='오류'}
+}
+
+function applyFilters(){
+  const fa=document.getElementById('filterArea').value;
+  const fp=document.getElementById('filterPrice').value;
+  const fs=document.getElementById('filterSort').value;
+  let f=rawTrades.slice();
+  if(fa==='small')f=f.filter(t=>t._area<=59);
+  else if(fa==='mid')f=f.filter(t=>t._area>=60&&t._area<=84);
+  else if(fa==='large')f=f.filter(t=>t._area>=85&&t._area<=102);
+  else if(fa==='xlarge')f=f.filter(t=>t._area>102);
+  if(fp==='p5')f=f.filter(t=>t._price<=50000);
+  else if(fp==='p10')f=f.filter(t=>t._price>50000&&t._price<=100000);
+  else if(fp==='p20')f=f.filter(t=>t._price>100000&&t._price<=200000);
+  else if(fp==='p30')f=f.filter(t=>t._price>200000&&t._price<=300000);
+  else if(fp==='p30p')f=f.filter(t=>t._price>300000);
+  if(fs==='price_desc')f.sort((a,b)=>b._price-a._price);
+  else if(fs==='price_asc')f.sort((a,b)=>a._price-b._price);
+  else if(fs==='area_desc')f.sort((a,b)=>b._area-a._area);
+  else f.sort((a,b)=>parseInt(b.day||0)-parseInt(a.day||0));
+  document.getElementById('tradeStatus').textContent=`${f.length}건 / 전체 ${rawTrades.length}건`;
+  const el=document.getElementById('trBody');
+  if(!f.length){el.innerHTML='<tr><td colspan="10" class="loading">조건에 맞는 거래가 없습니다</td></tr>';return}
+  const curArea=document.getElementById('areaSelect').value;
+  el.innerHTML=f.map((t,i)=>`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td>${esc(t._areaName)}</td><td><span class="apt-link" onclick="showChart('${curArea}','${esc(t.name)}')">${esc(t.name)}</span></td><td class="c">${Math.round(t._area)}㎡</td><td class="c">${esc(t.floor)}</td><td class="r b vu">${fmtPrice(t.price)}</td><td class="c">${t.month}.${t.day}</td><td class="c">${esc(t.built)}</td><td>${esc(t.dong)}</td></tr>`).join('');
+}
+document.getElementById('filterArea').addEventListener('change',()=>{if(rawTrades.length)applyFilters()});
+document.getElementById('filterPrice').addEventListener('change',()=>{if(rawTrades.length)applyFilters()});
+document.getElementById('filterSort').addEventListener('change',()=>{if(rawTrades.length)applyFilters()});
+
+let rawSubs=[];
+async function loadSubscriptions(){
+  const el=document.getElementById('subBody');
+  try{
+    const{ok,data,error}=await fetch('/api/subscriptions').then(r=>r.json());
+    if(!ok){el.innerHTML=`<tr><td colspan="12" class="error-box">${esc(error)}</td></tr>`;return}
+    rawSubs=data;
+    // populate region filter
+    const regions=[...new Set(data.map(d=>d.region).filter(Boolean))].sort();
+    const rsel=document.getElementById('subFilterRegion');
+    rsel.innerHTML='<option value="all">전체</option>'+regions.map(r=>`<option value="${r}">${r}</option>`).join('');
+    applySubFilters();
+  }catch(e){el.innerHTML=`<tr><td colspan="12" class="error-box">${esc(e.message)}</td></tr>`}
+}
+function getSubStatus(s){
+  const now=new Date().toISOString().slice(0,10);
+  if(s.startDate&&s.startDate>now)return'예정';
+  if(s.endDate&&s.endDate>=now)return'접수중';
+  return'마감';
+}
+function applySubFilters(){
+  const fr=document.getElementById('subFilterRegion').value;
+  const ft=document.getElementById('subFilterType').value;
+  const fs=document.getElementById('subFilterStatus').value;
+  let f=rawSubs.slice();
+  if(fr!=='all')f=f.filter(s=>s.region===fr);
+  if(ft!=='all')f=f.filter(s=>s.supplyType===ft);
+  if(fs!=='all')f=f.filter(s=>getSubStatus(s)===fs);
+  document.getElementById('subCount').textContent=`${f.length}건 / 전체 ${rawSubs.length}건`;
+  const el=document.getElementById('subBody');
+  if(!f.length){el.innerHTML='<tr><td colspan="12" class="loading">조건에 맞는 청약 없음</td></tr>';return}
+  el.innerHTML=f.map((s,i)=>{
+    const st=getSubStatus(s);
+    const stTag=st==='접수중'?'<span class="tag t-green">접수중</span>':st==='예정'?'<span class="tag t-blue">예정</span>':'<span class="tag t-gray">마감</span>';
+    const typeTag=s.supplyType==='줍줍'?'<span class="tag t-orange">줍줍</span>':s.supplyType==='공공'?'<span class="tag t-purple">공공</span>':'<span class="tag t-blue">민영</span>';
+    const spsply=s.spsplyStart?`${s.spsplyStart.slice(5)}`:'-';
+    const rank=s.rank1Start?`${s.rank1Start.slice(5)}/${s.rank2Start?s.rank2Start.slice(5):'-'}`:'-';
+    const price=s.topPrice?fmtPrice(s.topPrice):'-';
+    const comp=s.compSummary||'-';
+    return`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td class="b">${esc(s.name)}</td><td>${esc(s.region||'')}</td><td class="c">${s.units||'-'}</td><td class="c">${typeTag}</td><td class="c">${spsply}</td><td class="c">${rank}</td><td class="c">${s.winnerDate?s.winnerDate.slice(5):'-'}</td><td class="r b">${price}</td><td style="font-size:10px;color:#555">${esc(comp)}</td><td class="c">${s.url?`<a href="${esc(s.url)}" target="_blank">보기</a>`:'-'}</td></tr>`;
+  }).join('');
+}
+['subFilterRegion','subFilterType','subFilterStatus'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{if(rawSubs.length)applySubFilters()}));
+
+async function loadAuction(){
+  const el=document.getElementById('aucBody'),st=document.getElementById('aucStatus');
+  const sido=document.getElementById('aucSido').value;
+  el.innerHTML='<tr><td colspan="9" class="loading">법원경매 사이트 크롤링 중... (최대 30초)</td></tr>';st.textContent='로딩중...';
+  try{
+    const{ok,data,error}=await fetch(`/api/auction?sido=${encodeURIComponent(sido)}`).then(r=>r.json());
+    if(!ok)throw new Error(error);
+    if(!data.length){el.innerHTML='<tr><td colspan="9" class="loading">해당 지역의 경매 물건이 없거나 크롤링에 실패했습니다</td></tr>';st.textContent='0건';return}
+    st.textContent=`${data.length}건`;
+    el.innerHTML=data.map((a,i)=>{
+      const appr=a.appraisal?Number(a.appraisal).toLocaleString()+'원':'-';
+      const min=a.minPrice?Number(a.minPrice).toLocaleString()+'원':'-';
+      const statusTag=a.status.includes('유찰')?`<span class="tag t-orange">${esc(a.status)}</span>`:a.status?`<span class="tag t-green">${esc(a.status)}</span>`:'';
+      return`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td class="b">${esc(a.caseNo)}</td><td>${esc(a.address)}</td><td class="c">${esc(a.usage)}</td><td class="r">${appr}</td><td class="r b vu">${min}</td><td class="c">${esc(a.saleDate)}</td><td class="c">${statusTag}</td></tr>`
+    }).join('');
+  }catch(e){el.innerHTML=`<tr><td colspan="9" class="error-box">크롤링 실패: ${esc(e.message)}<br><small>법원경매 사이트 접속이 안 될 수 있습니다</small></td></tr>`;st.textContent='오류'}
+}
+
+function showNoKey(id,cols){document.getElementById(id).innerHTML=`<tr><td colspan="${cols}"><div class="guide-box"><h3>공공데이터포털 API 키 설정 필요</h3>실거래가 데이터를 보려면 무료 API 키가 필요합니다:<br>1. <a href="https://www.data.go.kr" target="_blank">data.go.kr</a> 회원가입<br>2. "국토교통부_아파트매매 실거래 상세 자료" 활용 신청<br>3. <code>DATA_API_KEY=키 bun run server.js</code></div></td></tr>`}
+
+function switchSheet(name,el){document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));document.getElementById('s-'+name).classList.add('active');el.classList.add('active');const fx={indicators:'=REALTIME_SUMMARY()',policy:'=NEWS("부동산 정책")',trades:'=DATA_GO_KR("실거래가")',auction:'=COURT_AUCTION()',subscription:'=APPLY_HOME()'};document.getElementById('fxContent').textContent=fx[name]||''}
+function refreshAll(){location.reload()}
+document.getElementById('zoomSlider').addEventListener('input',function(){document.getElementById('zoomVal').textContent=this.value+'%';document.querySelector('.sheet-area').style.zoom=this.value/100});
+document.addEventListener('DOMContentLoaded',init);
+setInterval(()=>loadNews(),5*60*1000);
+
+// ---- Chat ----
+const CHAT_UID_KEY='re_chat_uid';let chatUid=localStorage.getItem(CHAT_UID_KEY);if(!chatUid){chatUid='u_'+Math.random().toString(36).slice(2,11);localStorage.setItem(CHAT_UID_KEY,chatUid)}
+let chatLastId=0,chatOpen=false,chatPoll=null,chatUnread=0;
+function toggleChat(){chatOpen=!chatOpen;document.getElementById('chatPanel').classList.toggle('open',chatOpen);if(chatOpen){chatUnread=0;updUnread();document.getElementById('chatInput').focus();scrollChat()}}
+function startPoll(){pollChat();chatPoll=setInterval(pollChat,3000)}
+async function pollChat(){try{const{ok,messages,online}=await fetch(`/api/chat?since=${chatLastId}`).then(r=>r.json());if(!ok)return;document.getElementById('chatOnline').textContent=`${online}명`;document.getElementById('visitorCount').textContent=`접속 ${online}명`;if(!messages.length)return;const b=document.getElementById('chatMessages'),bot=b.scrollHeight-b.scrollTop-b.clientHeight<60;for(const m of messages){if(m.id<=chatLastId)continue;chatLastId=m.id;const d=document.createElement('div');d.className='chat-msg'+(m.user_id===chatUid?' mine':'');const t=new Date(m.created_at);d.innerHTML=`<span class="chat-nick">${esc(m.nickname)}</span><span class="chat-text">${esc(m.body)}</span><span class="chat-time">${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}</span>`;b.appendChild(d);if(!chatOpen){chatUnread++;updUnread()}}if(bot)scrollChat()}catch{}}
+function scrollChat(){const b=document.getElementById('chatMessages');setTimeout(()=>b.scrollTop=b.scrollHeight,50)}
+function updUnread(){const el=document.getElementById('chatUnread');if(chatUnread>0){el.style.display='';el.textContent=chatUnread>99?'99+':chatUnread}else el.style.display='none'}
+async function sendChat(e){e.preventDefault();const inp=document.getElementById('chatInput'),body=inp.value.trim();if(!body)return;const nick=document.getElementById('chatNickname').value.trim()||`부동산러버_${chatUid.slice(-3)}`;inp.disabled=true;try{const{ok}=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:chatUid,nickname:nick,body})}).then(r=>r.json());if(ok){inp.value='';pollChat()}}catch{}finally{inp.disabled=false;inp.focus()}}
+setTimeout(startPoll,2000);
+
+// ---- Chart ----
+function closeChart(){document.getElementById('chartOverlay').classList.remove('open')}
+async function showChart(area,name){
+  document.getElementById('chartOverlay').classList.add('open');
+  document.getElementById('chartTitle').innerHTML=`${esc(name)} <small>${AREAS[area]||area} · 최근 12개월 실거래</small>`;
+  const body=document.getElementById('chartBody');
+  body.innerHTML='<div class="chart-loading">최근 12개월 거래 내역을 조회 중입니다...<br><small>최대 1분 소요</small></div>';
+  try{
+    const{ok,data,error}=await fetch(`/api/price-history?area=${area}&name=${encodeURIComponent(name)}`).then(r=>r.json());
+    if(!ok)throw new Error(error);
+    if(!data.length){body.innerHTML='<div class="chart-loading">해당 아파트의 최근 거래 내역이 없습니다</div>';return}
+    renderChart(data,name);
+  }catch(e){body.innerHTML=`<div class="chart-loading" style="color:#c00">조회 실패: ${esc(e.message)}</div>`}
+}
+
+function renderChart(data,name){
+  const body=document.getElementById('chartBody');
+  const prices=data.map(d=>d.price);
+  const minP=Math.min(...prices),maxP=Math.max(...prices);
+  const pad=(maxP-minP)*0.1||5000;
+  const yMin=minP-pad,yMax=maxP+pad;
+  const W=680,H=260,ml=60,mr=20,mt=20,mb=30;
+  const cw=W-ml-mr,ch=H-mt-mb;
+
+  const pts=data.map((d,i)=>{
+    const x=ml+(i/(data.length-1||1))*cw;
+    const y=mt+ch-(((d.price-yMin)/(yMax-yMin))*ch);
+    return{x,y,...d};
+  });
+
+  const line=pts.map((p,i)=>`${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaPath=line+` L${pts[pts.length-1].x},${mt+ch} L${pts[0].x},${mt+ch} Z`;
+
+  // Y axis labels
+  const yTicks=5;
+  let yLabels='';
+  for(let i=0;i<=yTicks;i++){
+    const v=yMin+(yMax-yMin)*(i/yTicks);
+    const y=mt+ch-(i/yTicks)*ch;
+    yLabels+=`<text x="${ml-8}" y="${y+4}" text-anchor="end" fill="#888" font-size="10">${fmtPrice(Math.round(v))}</text>`;
+    yLabels+=`<line x1="${ml}" y1="${y}" x2="${W-mr}" y2="${y}" stroke="#eee" stroke-width="1"/>`;
+  }
+
+  // X axis labels (dates)
+  let xLabels='';
+  const step=Math.max(1,Math.floor(pts.length/8));
+  pts.forEach((p,i)=>{if(i%step===0||i===pts.length-1)xLabels+=`<text x="${p.x}" y="${mt+ch+16}" text-anchor="middle" fill="#888" font-size="9">${p.date.slice(2,7)}</text>`});
+
+  // Dots
+  const dots=pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="var(--excel)" stroke="#fff" stroke-width="1.5"><title>${p.date} | ${fmtPrice(p.price)} | ${Math.round(p.area)}㎡ ${p.floor}층</title></circle>`).join('');
+
+  // Stats
+  const avgP=Math.round(prices.reduce((a,b)=>a+b,0)/prices.length);
+  const areas=[...new Set(data.map(d=>Math.round(d.area)))].sort((a,b)=>a-b);
+
+  body.innerHTML=`
+    <div class="chart-legend">
+      <span><span class="dot" style="background:var(--excel)"></span>거래가격</span>
+      <span>거래 ${data.length}건 · 평균 ${fmtPrice(avgP)} · 면적 ${areas.join(', ')}㎡</span>
+    </div>
+    <div class="chart-canvas">
+      <svg viewBox="0 0 ${W} ${H}">
+        ${yLabels}${xLabels}
+        <path d="${areaPath}" fill="var(--excel)" opacity="0.08"/>
+        <path d="${line}" fill="none" stroke="var(--excel)" stroke-width="2.5" stroke-linejoin="round"/>
+        ${dots}
+      </svg>
+    </div>
+    <table class="chart-tbl">
+      <thead><tr><th>거래일</th><th>전용면적</th><th>층</th><th>거래금액</th></tr></thead>
+      <tbody>${data.slice().reverse().map(d=>`<tr><td>${d.date}</td><td class="r">${Math.round(d.area)}㎡</td><td class="r">${d.floor}층</td><td class="r b">${fmtPrice(d.price)}</td></tr>`).join('')}</tbody>
+    </table>`;
+}
+</script>
+</body>
+</html>
