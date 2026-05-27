@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>부동산_종합현황.xlsx - Excel</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23217346'/><text x='16' y='23' text-anchor='middle' font-size='20' font-weight='bold' fill='white' font-family='Arial'>X</text></svg>">
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -505,7 +509,7 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
   <div class="stab" onclick="switchSheet('policy',this)">정책뉴스</div>
   <div class="stab" onclick="switchSheet('trades',this)">실거래내역</div>
   <div class="stab" onclick="switchSheet('auction',this)">경매정보</div>
-  <div class="stab" onclick="switchSheet('subscription',this)">청약정보</div>
+  <div class="stab" onclick="switchSheet('subscription',this)">청약��보</div>
 </div>
 
 <div class="status-bar">
@@ -785,7 +789,7 @@ function showListings(apt, dong){
   const sites=[
     {name:'네이버 부동산',desc:'가장 많은 매물, 전월세 포함',url:`https://m.land.naver.com/search/result/${kw}`,color:'#03c75a',icon:'N'},
     {name:'KB부동산',desc:'KB시세, 단지정보',url:`https://kbland.kr/search?q=${kw}`,color:'#ffbc00',icon:'K'},
-    {name:'호갱노노',desc:'실거주 후기, 학군, 일조량',url:`https://hogangnono.com/search/${kw}`,color:'#ff6b6b',icon:'호'},
+    {name:'호��노노',desc:'실거주 후기, 학군, 일조량',url:`https://hogangnono.com/search/${kw}`,color:'#ff6b6b',icon:'호'},
     {name:'직방',desc:'아파트/오피스텔 매물',url:`https://www.zigbang.com/search?q=${kw}`,color:'#ff6f0f',icon:'직'},
     {name:'다방',desc:'원/투룸, 빌라 매물',url:`https://www.dabangapp.com/search/${kw}`,color:'#ff8a3d',icon:'다'},
   ];
