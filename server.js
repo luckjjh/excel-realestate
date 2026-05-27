@@ -580,15 +580,48 @@ app.get("/api/competition", async (req, res) => {
   }
 });
 
-// --------------- 실시간 채팅 ---------------
-const chatMessages = [];
+// --------------- 실시간 채팅 (KV 영속) ---------------
+let chatMessages = [];
 let chatIdCounter = 1;
 const CHAT_MAX = 200;
 const chatBanMap = {};
+let chatLoaded = false;
+
+async function loadChatHistory() {
+  if (chatLoaded) return;
+  chatLoaded = true;
+  if (!kv) return;
+  try {
+    const saved = await kv.get("chat:messages");
+    if (Array.isArray(saved) && saved.length) {
+      chatMessages = saved;
+      chatIdCounter = Math.max(...saved.map((m) => m.id)) + 1;
+    }
+  } catch {}
+}
+
+async function saveChatToKV() {
+  if (!kv) return;
+  try {
+    await kv.set("chat:messages", chatMessages, { ex: 604800 });
+  } catch {}
+}
+
+const NICK_PREFIXES = [
+  "부동산부자", "갭투자왕", "청약달인", "로또당첨", "건물주",
+  "전세마스터", "월세탈출", "내집마련", "분양킹", "재테크고수",
+];
+
+function generateNickname(uid) {
+  const prefix = NICK_PREFIXES[Math.floor(Math.random() * NICK_PREFIXES.length)];
+  const suffix = (uid || Math.random().toString(36)).slice(-4);
+  return `${prefix}${suffix}`;
+}
 
 app.use(express.json());
 
-app.get("/api/chat", (req, res) => {
+app.get("/api/chat", async (req, res) => {
+  await loadChatHistory();
   const since = parseInt(req.query.since) || 0;
   const msgs = since
     ? chatMessages.filter((m) => m.id > since)
@@ -601,14 +634,12 @@ app.get("/api/chat", (req, res) => {
   });
 });
 
-app.post("/api/chat", (req, res) => {
+app.post("/api/chat", async (req, res) => {
+  await loadChatHistory();
   const { user_id, nickname, body } = req.body || {};
   if (!body || !body.trim()) return res.json({ ok: false, error: "empty" });
   if (body.length > 280) return res.json({ ok: false, error: "too_long" });
-  const nick =
-    (nickname || "").trim().slice(0, 24) ||
-    `부동산러버_${(user_id || "").slice(-3)}`;
-  // rate limit: 1 msg per 2s per user
+  const nick = (nickname || "").trim().slice(0, 24) || generateNickname(user_id);
   if (chatBanMap[user_id] && Date.now() - chatBanMap[user_id] < 2000) {
     return res.json({ ok: false, error: "rate_limit" });
   }
@@ -623,7 +654,76 @@ app.post("/api/chat", (req, res) => {
   chatMessages.push(msg);
   if (chatMessages.length > CHAT_MAX)
     chatMessages.splice(0, chatMessages.length - CHAT_MAX);
+  saveChatToKV();
   res.json({ ok: true, message: msg });
+});
+
+// --------------- 토론 게시판 ---------------
+const DISCUSS_MAX = 100;
+
+app.get("/api/discuss", async (req, res) => {
+  if (!kv) return res.json({ ok: true, posts: [] });
+  try {
+    const posts = (await kv.get("discuss:posts")) || [];
+    res.json({ ok: true, posts });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+app.post("/api/discuss", async (req, res) => {
+  if (!kv) return res.json({ ok: false, error: "KV not configured" });
+  const { user_id, nickname, title, body } = req.body || {};
+  if (!title?.trim() || !body?.trim())
+    return res.json({ ok: false, error: "제목과 내용을 입력하세요" });
+  if (title.length > 60) return res.json({ ok: false, error: "제목 60자 이내" });
+  if (body.length > 1000) return res.json({ ok: false, error: "내용 1000자 이내" });
+  const nick = (nickname || "").trim().slice(0, 24) || generateNickname(user_id);
+  try {
+    const posts = (await kv.get("discuss:posts")) || [];
+    const post = {
+      id: Date.now(),
+      user_id: user_id || "anon",
+      nickname: nick,
+      title: title.trim().slice(0, 60),
+      body: body.trim().slice(0, 1000),
+      created_at: new Date().toISOString(),
+      replies: [],
+    };
+    posts.unshift(post);
+    if (posts.length > DISCUSS_MAX) posts.length = DISCUSS_MAX;
+    await kv.set("discuss:posts", posts, { ex: 2592000 });
+    res.json({ ok: true, post });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+app.post("/api/discuss/:id/reply", async (req, res) => {
+  if (!kv) return res.json({ ok: false, error: "KV not configured" });
+  const postId = parseInt(req.params.id);
+  const { user_id, nickname, body } = req.body || {};
+  if (!body?.trim()) return res.json({ ok: false, error: "내용을 입력하세요" });
+  const nick = (nickname || "").trim().slice(0, 24) || generateNickname(user_id);
+  try {
+    const posts = (await kv.get("discuss:posts")) || [];
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return res.json({ ok: false, error: "게시글 없음" });
+    const reply = {
+      id: Date.now(),
+      user_id: user_id || "anon",
+      nickname: nick,
+      body: body.trim().slice(0, 500),
+      created_at: new Date().toISOString(),
+    };
+    post.replies = post.replies || [];
+    if (post.replies.length >= 50) return res.json({ ok: false, error: "댓글 50개 제한" });
+    post.replies.push(reply);
+    await kv.set("discuss:posts", posts, { ex: 2592000 });
+    res.json({ ok: true, reply });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
 });
 
 // --------------- 청약 상세조회 ---------------
