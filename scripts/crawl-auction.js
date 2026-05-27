@@ -113,18 +113,19 @@ function parseItem(x) {
 async function fetchRegion(cookie, headers, sidoCode, sidoName) {
   const allItems = [];
   let page = 1;
-  const PAGE_SIZE = 100;
-  const MAX_PAGES = 10;
+  const PAGE_SIZE = 20;
+  const MAX_PAGES = 50;
 
   while (page <= MAX_PAGES) {
     const r = await axios.post(SEARCH_URL, makeBody(sidoCode, page, PAGE_SIZE), {
       headers: { ...headers, Cookie: cookie },
       timeout: 30000,
+      validateStatus: () => true,
     });
 
-    if (r.data?.message && r.data.message !== "정상") {
-      console.error(`  [${sidoName}] API error: ${r.data.message}`);
-      break;
+    if (r.status !== 200) {
+      console.error(`  [${sidoName}] HTTP ${r.status}: ${JSON.stringify(r.data).substring(0, 200)}`);
+      throw new Error(`HTTP ${r.status}`);
     }
 
     const rows = r.data?.data?.dlt_srchResult || r.data?.dlt_srchResult || [];
