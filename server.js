@@ -939,6 +939,128 @@ app.get("/api/auction/meta", async (_, res) => {
   }
 });
 
+// --------------- 경매 크롤링 (Vercel Cron) ---------------
+const CRAWL_INDEX_URL = "https://www.courtauction.go.kr/pgj/index.on";
+const CRAWL_SEARCH_URL =
+  "https://www.courtauction.go.kr/pgj/pgjsearch/searchControllerMain.on";
+
+function makeCrawlBody(sidoCode, page = 1) {
+  return {
+    dma_pageInfo: {
+      pageNo: String(page), pageSize: "20", totalCnt: "", totalYn: "Y",
+      startRowNo: "", groupTotalCount: "",
+    },
+    dma_srchGdsDtlSrchInfo: {
+      cortAuctnSrchCondCd: "0004601", cortStDvs: "2",
+      rprsAdongSdCd: sidoCode, rprsAdongSggCd: "", rprsAdongEmdCd: "",
+      cortOfcCd: "", jdbnCd: "", lclDspslGdsLstUsgCd: "",
+      mclDspslGdsLstUsgCd: "", sclDspslGdsLstUsgCd: "",
+      aeeEvlAmtMin: "", aeeEvlAmtMax: "", lwsDspslPrcMin: "", lwsDspslPrcMax: "",
+      lwsDspslPrcRateMin: "", lwsDspslPrcRateMax: "",
+      flbdNcntMin: "", flbdNcntMax: "", objctArDtsMin: "", objctArDtsMax: "",
+      bidBgngYmd: "", bidEndYmd: "", bidDvsCd: "", mvprpRletDvsCd: "",
+      csNo: "", lafjOrderBy: "", pgmId: "PGJ151M01", notifyLoc: "",
+      rletDspslSpcCondCd: "", dspslDxdyYmd: "",
+      rdnmSdCd: "", rdnmSggCd: "", rdnmNo: "", cortAuctnMbrsId: "",
+    },
+  };
+}
+
+function parseCrawlItem(x) {
+  const ymd = String(x.maeGiil || "");
+  const saleDate = ymd.length === 8
+    ? `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}` : "";
+  const yuchal = parseInt(x.yuchalCnt || "0", 10);
+  return {
+    caseNo: String(x.srnSaNo || ""), court: String(x.jiwonNm || ""),
+    dept: String(x.jpDeptNm || ""), address: String(x.printSt || ""),
+    sido: String(x.hjguSido || x.sdNm || ""),
+    sigu: String(x.hjguSigu || x.sggNm || ""),
+    usage: String(x.dspslUsgNm || ""), buldNm: String(x.buldNm || ""),
+    area: String(x.pjbBuldList || x.objctArDts || ""),
+    appraisal: String(x.gamevalAmt || ""), minPrice: String(x.minmaePrice || ""),
+    saleDate, saleHour: String(x.maeHh1 || ""),
+    yuchalCnt: yuchal, status: yuchal > 0 ? `${yuchal}회 유찰` : "진행",
+    detailUrl: `https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ152F00.xml&srnSaNo=${encodeURIComponent(x.srnSaNo || "")}`,
+  };
+}
+
+// 한 번 호출에 BATCH_SIZE개 지역을 크롤링, 라운드로빈으로 순환.
+// Hobby 플랜 10초 타임아웃: 세션 ~2초 + 지역당 ~1초 = 5~6개 가능.
+const CRAWL_BATCH_SIZE = 5;
+
+app.get("/api/crawl-auction", async (req, res) => {
+  if (!kv) return res.json({ ok: false, error: "KV not configured" });
+
+  const sidoCodes = Object.keys(AUCTION_SIDO_MAP);
+  const startIdx = parseInt(await kv.get("auction:nextIdx") || "0", 10) % sidoCodes.length;
+
+  try {
+    const r1 = await axios.get(CRAWL_INDEX_URL, {
+      headers: { "User-Agent": UA, "Accept-Language": "ko-KR,ko;q=0.9" },
+      timeout: 5000, maxRedirects: 0, validateStatus: (s) => s < 400,
+    });
+    const cookies = (r1.headers["set-cookie"] || [])
+      .map((c) => c.split(";")[0]).filter(Boolean).join("; ");
+
+    const hdrs = {
+      "User-Agent": UA, "Accept-Language": "ko-KR,ko;q=0.9",
+      "Content-Type": "application/json;charset=UTF-8",
+      Accept: "application/json", Referer: CRAWL_INDEX_URL,
+      Origin: "https://www.courtauction.go.kr",
+      "X-Requested-With": "XMLHttpRequest", Cookie: cookies,
+    };
+
+    const meta = await kv.get("auction:meta") || { regions: {} };
+    const regions = meta.regions || {};
+    const results = {};
+
+    for (let i = 0; i < CRAWL_BATCH_SIZE; i++) {
+      const idx = (startIdx + i) % sidoCodes.length;
+      const code = sidoCodes[idx];
+      const name = AUCTION_SIDO_MAP[code];
+      try {
+        const r2 = await axios.post(CRAWL_SEARCH_URL, makeCrawlBody(code, 1), {
+          headers: hdrs, timeout: 4000, validateStatus: () => true,
+        });
+        if (r2.status !== 200) throw new Error(`HTTP ${r2.status}`);
+        const rows = r2.data?.data?.dlt_srchResult || [];
+        const items = rows.map(parseCrawlItem);
+        await kv.set(`auction:${code}`, items, { ex: 172800 });
+        regions[name] = items.length;
+        results[name] = items.length;
+      } catch (e) {
+        regions[name] = `ERROR: ${e.message}`;
+        results[name] = `ERROR: ${e.message}`;
+      }
+    }
+
+    const nextIdx = (startIdx + CRAWL_BATCH_SIZE) % sidoCodes.length;
+    await kv.set("auction:nextIdx", nextIdx);
+
+    // 한 바퀴 돌았으면 auction:all 갱신
+    if (nextIdx <= startIdx) {
+      const allItems = [];
+      for (const code of sidoCodes) {
+        const regionItems = await kv.get(`auction:${code}`);
+        if (Array.isArray(regionItems)) allItems.push(...regionItems);
+      }
+      await kv.set("auction:all", allItems, { ex: 172800 });
+    }
+
+    const newMeta = {
+      crawledAt: new Date().toISOString(),
+      totalItems: Object.values(regions).reduce((a, v) => a + (typeof v === "number" ? v : 0), 0),
+      regions, sidoCodes, nextIdx,
+    };
+    await kv.set("auction:meta", newMeta, { ex: 172800 });
+
+    res.json({ ok: true, batch: `${startIdx}-${nextIdx}`, results });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 app.get("/api/config", (_, res) => res.json({ hasApiKey: !!API_KEY }));
 
 if (!process.env.VERCEL) {

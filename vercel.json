@@ -1,9 +1,20 @@
 {
   "version": 2,
+  "regions": ["icn1"],
   "builds": [
     { "src": "server.js", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/(.*)", "dest": "server.js" }
+  ],
+  "crons": [
+    {
+      "path": "/api/crawl-auction",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/crawl-auction",
+      "schedule": "0 9 * * *"
+    }
   ]
 }
