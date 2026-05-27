@@ -364,6 +364,59 @@ app.post('/api/chat', (req, res) => {
   res.json({ ok: true, message: msg });
 });
 
+// --------------- 청약 상세조회 ---------------
+app.get('/api/subscription-detail', async (req, res) => {
+  const { manageNo } = req.query;
+  if (!manageNo || !API_KEY) return res.json({ ok: false, error: 'missing params' });
+  try {
+    const data = await cached(`subdet_${manageNo}`, 60 * 60 * 1000, async () => {
+      const [infoRes, mdlRes, compRes] = await Promise.all([
+        axios.get(`${ODCLOUD}/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancDetail`,
+          { params: { serviceKey: API_KEY, page: 1, perPage: 500 }, timeout: 15000 }),
+        axios.get(`${ODCLOUD}/ApplyhomeInfoDetailSvc/v1/getAPTLttotPblancMdl`,
+          { params: { serviceKey: API_KEY, page: 1, perPage: 500 }, timeout: 15000 }),
+        axios.get(`${ODCLOUD}/ApplyhomeInfoCmpetRtSvc/v1/getAPTLttotPblancCmpet`,
+          { params: { serviceKey: API_KEY, page: 1, perPage: 500 }, timeout: 15000 })
+      ]);
+      const info = (infoRes.data.data || []).find(i => String(i.HOUSE_MANAGE_NO) === String(manageNo));
+      const models = (mdlRes.data.data || []).filter(m => String(m.HOUSE_MANAGE_NO) === String(manageNo));
+      const comps = (compRes.data.data || []).filter(c => String(c.HOUSE_MANAGE_NO) === String(manageNo));
+      return {
+        info: info ? {
+          name: info.HOUSE_NM, addr: info.HSSPLY_ADRES,
+          builder: info.BSNS_MBY_NM, constructor: info.CNSTRCT_ENTRPS_NM,
+          totalUnits: info.TOT_SUPLY_HSHLDCO, type: info.HOUSE_DTL_SECD_NM,
+          rentType: info.RENT_SECD_NM, region: info.SUBSCRPT_AREA_CODE_NM,
+          announceDate: info.RCRIT_PBLANC_DE,
+          spsplyStart: info.SPSPLY_RCEPT_BGNDE, spsplyEnd: info.SPSPLY_RCEPT_ENDDE,
+          rank1Start: info.GNRL_RNK1_CRSPAREA_RCPTDE, rank1End: info.GNRL_RNK1_CRSPAREA_ENDDE,
+          rank2Start: info.GNRL_RNK2_CRSPAREA_RCPTDE, rank2End: info.GNRL_RNK2_CRSPAREA_ENDDE,
+          winnerDate: info.PRZWNER_PRESNATN_DE,
+          contractStart: info.CNTRCT_CNCLS_BGNDE, contractEnd: info.CNTRCT_CNCLS_ENDDE,
+          moveIn: info.MVN_PREARNGE_YM, homepage: info.HMPG_ADRES,
+          url: info.PBLANC_URL
+        } : null,
+        models: models.map(m => ({
+          houseType: m.HOUSE_TY, supplyArea: m.SUPLY_AR,
+          topPrice: m.LTTOT_TOP_AMOUNT, supplyCount: m.SUPLY_HSHLDCO,
+          spsplyCount: m.SPSPLY_HSHLDCO, generalCount: m.SUPLY_HSHLDCO,
+          newlywed: m.NWWDS_HSHLDCO, firstLife: m.LFE_FRST_HSHLDCO,
+          multiChild: m.MNYCH_HSHLDCO, oldParent: m.OLD_PARNTS_SUPORT_HSHLDCO,
+          institution: m.INSTT_RECOMEND_HSHLDCO
+        })),
+        competition: comps.map(c => ({
+          houseType: c.HOUSE_TY, rank: c.SUBSCRPT_RANK_CODE,
+          region: c.RESIDE_SENM, rate: c.CMPET_RATE,
+          supply: c.SUPLY_HSHLDCO, reqCount: c.REQ_CNT
+        }))
+      };
+    });
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 // --------------- (경매: 추후 CODEF API 연동 예정) ---------------
 
 // --------------- 아파트 가격 히스토리 (최근 12개월) ---------------

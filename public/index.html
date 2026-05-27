@@ -636,7 +636,7 @@ function applySubFilters(){
     const rank=s.rank1Start?`${s.rank1Start.slice(5)}/${s.rank2Start?s.rank2Start.slice(5):'-'}`:'-';
     const price=s.topPrice?fmtPrice(s.topPrice):'-';
     const comp=s.compSummary||'-';
-    return`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td class="b">${esc(s.name)}</td><td>${esc(s.region||'')}</td><td class="c">${s.units||'-'}</td><td class="c">${typeTag}</td><td class="c">${spsply}</td><td class="c">${rank}</td><td class="c">${s.winnerDate?s.winnerDate.slice(5):'-'}</td><td class="r b">${price}</td><td style="font-size:10px;color:#555">${esc(comp)}</td><td class="c">${s.url?`<a href="${esc(s.url)}" target="_blank">보기</a>`:'-'}</td></tr>`;
+    return`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td class="b">${esc(s.name)}</td><td>${esc(s.region||'')}</td><td class="c">${s.units||'-'}</td><td class="c">${typeTag}</td><td class="c">${spsply}</td><td class="c">${rank}</td><td class="c">${s.winnerDate?s.winnerDate.slice(5):'-'}</td><td class="r b">${price}</td><td style="font-size:10px;color:#555">${esc(comp)}</td><td class="c">${s.manageNo?`<span class="apt-link" onclick="showSubDetail('${s.manageNo}','${esc(s.name)}')">상세</span>`:'-'}</td></tr>`;
   }).join('');
 }
 ['subFilterRegion','subFilterType','subFilterStatus'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{if(rawSubs.length)applySubFilters()}));
@@ -677,6 +677,77 @@ function scrollChat(){const b=document.getElementById('chatMessages');setTimeout
 function updUnread(){const el=document.getElementById('chatUnread');if(chatUnread>0){el.style.display='';el.textContent=chatUnread>99?'99+':chatUnread}else el.style.display='none'}
 async function sendChat(e){e.preventDefault();const inp=document.getElementById('chatInput'),body=inp.value.trim();if(!body)return;const nick=document.getElementById('chatNickname').value.trim()||`부동산러버_${chatUid.slice(-3)}`;inp.disabled=true;try{const{ok}=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:chatUid,nickname:nick,body})}).then(r=>r.json());if(ok){inp.value='';pollChat()}}catch{}finally{inp.disabled=false;inp.focus()}}
 setTimeout(startPoll,2000);
+
+// ---- Subscription Detail Modal ----
+async function showSubDetail(manageNo, name){
+  document.getElementById('chartOverlay').classList.add('open');
+  document.getElementById('chartTitle').innerHTML=`${esc(name)} <small>청약 상세정보</small>`;
+  const body=document.getElementById('chartBody');
+  body.innerHTML='<div class="chart-loading">청약 상세정보 조회 중...</div>';
+  try{
+    const{ok,data,error}=await fetch(`/api/subscription-detail?manageNo=${manageNo}`).then(r=>r.json());
+    if(!ok)throw new Error(error);
+    const inf=data.info;
+    const mdl=data.models||[];
+    const cmp=data.competition||[];
+    let html='';
+
+    // 기본정보 테이블
+    if(inf){
+      const moveIn=inf.moveIn?`${inf.moveIn.slice(0,4)}년 ${parseInt(inf.moveIn.slice(4))}월`:'미정';
+      html+=`<table class="chart-tbl"><thead><tr><th colspan="4" style="background:var(--sel);font-size:13px">${esc(inf.name)} 기본정보</th></tr></thead><tbody>
+        <tr><td class="b" style="width:100px">주소</td><td colspan="3">${esc(inf.addr||'')}</td></tr>
+        <tr><td class="b">시행사</td><td>${esc(inf.builder||'-')}</td><td class="b" style="width:80px">시공사</td><td>${esc(inf.constructor||'-')}</td></tr>
+        <tr><td class="b">구분</td><td>${esc(inf.type||'')} / ${esc(inf.rentType||'')}</td><td class="b">총 세대수</td><td>${inf.totalUnits||'-'}세대</td></tr>
+        <tr><td class="b">입주예정</td><td>${moveIn}</td><td class="b">지역</td><td>${esc(inf.region||'-')}</td></tr>
+        ${inf.homepage?`<tr><td class="b">홈페이지</td><td colspan="3"><a href="${esc(inf.homepage)}" target="_blank">${esc(inf.homepage)}</a></td></tr>`:''}
+      </tbody></table>`;
+
+      // 일정 테이블
+      html+=`<table class="chart-tbl" style="margin-top:12px"><thead><tr><th colspan="4" style="background:var(--hb)">청약 일정</th></tr></thead><tbody>
+        <tr><td class="b" style="width:100px">모집공고일</td><td>${inf.announceDate||'-'}</td><td class="b" style="width:100px">당첨자발표</td><td>${inf.winnerDate||'-'}</td></tr>
+        <tr><td class="b">특별공급</td><td>${inf.spsplyStart||'-'}</td><td class="b">계약기간</td><td>${inf.contractStart&&inf.contractEnd?inf.contractStart+'~'+inf.contractEnd:'-'}</td></tr>
+        <tr><td class="b">1순위 접수</td><td>${inf.rank1Start||'-'}</td><td class="b">2순위 접수</td><td>${inf.rank2Start||'-'}</td></tr>
+      </tbody></table>`;
+    }
+
+    // 주택형별 정보
+    if(mdl.length){
+      html+=`<table class="chart-tbl" style="margin-top:12px"><thead><tr><th colspan="8" style="background:var(--hb)">주택형별 공급 정보</th></tr>
+        <tr><th>주택형</th><th class="r">공급면적(㎡)</th><th class="r">분양최고가</th><th class="r">일반공급</th><th class="r">특별공급</th><th class="r">신혼부부</th><th class="r">생애최초</th><th class="r">다자녀</th></tr></thead><tbody>`;
+      for(const m of mdl){
+        const p=m.topPrice?fmtPrice(parseInt(m.topPrice)):'-';
+        html+=`<tr><td class="b">${esc(m.houseType)}</td><td class="r">${m.supplyArea||'-'}</td><td class="r b vu">${p}</td><td class="r">${m.generalCount||0}</td><td class="r">${m.spsplyCount||0}</td><td class="r">${m.newlywed||0}</td><td class="r">${m.firstLife||0}</td><td class="r">${m.multiChild||0}</td></tr>`;
+      }
+      html+='</tbody></table>';
+    }
+
+    // 경쟁률
+    if(cmp.length){
+      html+=`<table class="chart-tbl" style="margin-top:12px"><thead><tr><th colspan="5" style="background:var(--hb)">경쟁률</th></tr>
+        <tr><th>주택형</th><th>순위</th><th>지역</th><th class="r">공급</th><th class="r">경쟁률</th></tr></thead><tbody>`;
+      for(const c of cmp){
+        html+=`<tr><td>${esc(c.houseType)}</td><td class="c">${c.rank}순위</td><td>${esc(c.region)}</td><td class="r">${c.supply||0}</td><td class="r b">${esc(c.rate||'-')}</td></tr>`;
+      }
+      html+='</tbody></table>';
+    }
+
+    if(inf&&inf.url) html+=`<div style="margin-top:12px;text-align:center"><a href="${esc(inf.url)}" target="_blank" style="color:var(--excel)">청약홈에서 보기</a></div>`;
+    body.innerHTML=html||'<div class="chart-loading">상세 정보가 없습니다</div>';
+  }catch(e){body.innerHTML=`<div class="chart-loading" style="color:#c00">${esc(e.message)}</div>`}
+}
+
+// ---- Tab bar switching (리본 탭 전환) ----
+document.querySelectorAll('.tabs span').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.tabs span').forEach(t=>t.classList.remove('active'));
+    this.classList.add('active');
+    const name=this.textContent.trim();
+    const ribbon=document.querySelector('.ribbon');
+    if(name==='파일'){ribbon.style.display='none'}
+    else{ribbon.style.display=''}
+  });
+});
 
 // ---- Chart ----
 function closeChart(){document.getElementById('chartOverlay').classList.remove('open')}
