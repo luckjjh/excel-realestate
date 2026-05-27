@@ -382,6 +382,13 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
     <!-- 실거래 내역 -->
     <div class="sheet" id="s-trades">
       <div class="filter-bar">
+        <label>셔세권:</label>
+        <select id="filterShuttle">
+          <option value="all">전체 지역</option>
+          <option value="samsung">🔵 삼성전자 셔세권</option>
+          <option value="skhynix">🟠 SK하이닉스 셔세권</option>
+          <option value="both">⭐ 삼성+하이닉스 공통</option>
+        </select>
         <label>지역:</label><select id="areaSelect"></select>
         <label>거래월:</label><select id="monthSelect"></select>
         <label>면적:</label>
@@ -508,6 +515,12 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
 <script>
 const CAT={policy:'정책',market:'시세',auction:'경매',supply:'공급'};
 let AREAS={},allNews=[],hasApiKey=false,rawTrades=[];
+// 셔세권 (삼성전자·SK하이닉스 통근버스 정차지 인근) - 참고용
+const SHUTTLE={
+  samsung:new Set(['11680','11650','11710','11590','11140','11170','41117','41113','41135','41597','41595','41463','41465','41450','41370']),
+  skhynix:new Set(['11680','11650','11710','11740','11215','41135','41500','41117','41465','41463','41450','41610'])
+};
+function shuttleTag(code){const s=SHUTTLE.samsung.has(code),h=SHUTTLE.skhynix.has(code);if(s&&h)return' ⭐';if(s)return' 🔵';if(h)return' 🟠';return''}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function fmtPrice(s){const n=parseInt(String(s).replace(/[, ]/g,''));if(isNaN(n))return s;if(n>=10000){const e=n/10000;return e%1===0?e+'억':e.toFixed(1)+'억'}return n.toLocaleString()+'만'}
 
@@ -524,10 +537,15 @@ async function init(){
 
 function setupAreaSelect(){
   const sel=document.getElementById('areaSelect');
-  const s=Object.keys(AREAS).filter(c=>c.startsWith('11')),g=Object.keys(AREAS).filter(c=>c.startsWith('41'));
-  let h='<optgroup label="서울">';s.forEach(c=>h+=`<option value="${c}">${AREAS[c]}</option>`);
-  h+='</optgroup><optgroup label="경기">';g.forEach(c=>h+=`<option value="${c}">${AREAS[c]}</option>`);
-  sel.innerHTML=h+'</optgroup>';
+  const sh=document.getElementById('filterShuttle').value;
+  const inSh=c=>sh==='all'||(sh==='samsung'&&SHUTTLE.samsung.has(c))||(sh==='skhynix'&&SHUTTLE.skhynix.has(c))||(sh==='both'&&SHUTTLE.samsung.has(c)&&SHUTTLE.skhynix.has(c));
+  const s=Object.keys(AREAS).filter(c=>c.startsWith('11')&&inSh(c)),g=Object.keys(AREAS).filter(c=>c.startsWith('41')&&inSh(c));
+  const prev=sel.value;
+  let h='';
+  if(s.length){h+='<optgroup label="서울">';s.forEach(c=>h+=`<option value="${c}">${AREAS[c]}${shuttleTag(c)}</option>`);h+='</optgroup>'}
+  if(g.length){h+='<optgroup label="경기">';g.forEach(c=>h+=`<option value="${c}">${AREAS[c]}${shuttleTag(c)}</option>`);h+='</optgroup>'}
+  sel.innerHTML=h||'<option value="">해당 셔세권 지역 없음</option>';
+  if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;
   const ms=document.getElementById('monthSelect'),now=new Date();let mh='';
   for(let i=0;i<6;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const ym=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`;mh+=`<option value="${ym}">${d.getFullYear()}년 ${d.getMonth()+1}월</option>`}
   ms.innerHTML=mh;
@@ -596,6 +614,7 @@ function applyFilters(){
 document.getElementById('filterArea').addEventListener('change',()=>{if(rawTrades.length)applyFilters()});
 document.getElementById('filterPrice').addEventListener('change',()=>{if(rawTrades.length)applyFilters()});
 document.getElementById('filterSort').addEventListener('change',()=>{if(rawTrades.length)applyFilters()});
+document.getElementById('filterShuttle').addEventListener('change',()=>setupAreaSelect());
 
 let rawSubs=[];
 async function loadSubscriptions(){
