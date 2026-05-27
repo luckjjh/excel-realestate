@@ -9,6 +9,7 @@ const API_KEY = process.env.DATA_API_KEY || "";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // --------------- Cache (L1: memory, L2: Upstash KV) ---------------
@@ -144,12 +145,46 @@ function timeAgo(dateStr) {
   }
 }
 
-async function fetchNews(query) {
-  try {
-    return await scrapeNaverNews(query);
-  } catch {
-    return await fetchGoogleRSS(query);
+async function scrapeDaumNews(query) {
+  const url = `https://search.daum.net/search?w=news&q=${encodeURIComponent(query)}&sort=recency`;
+  const { data } = await axios.get(url, {
+    headers: { "User-Agent": UA, "Accept-Language": "ko-KR,ko;q=0.9" },
+    timeout: 10000,
+  });
+  const $ = cheerio.load(data);
+  const items = [];
+  $(".cont_thumb .wrap_tit, .news_cont .tit_item, .cont_item .tit_item").each((_, el) => {
+    const $a = $(el).find("a").first();
+    if (!$a.length) return;
+    const title = $a.text().trim();
+    if (!title) return;
+    const link = $a.attr("href") || "";
+    items.push({ title, link, summary: "", source: "다음", time: "" });
+  });
+  if (!items.length) {
+    $("a.f_link_b, a.tit_main").each((_, el) => {
+      const title = $(el).text().trim();
+      const link = $(el).attr("href") || "";
+      if (title) items.push({ title, link, summary: "", source: "다음", time: "" });
+    });
   }
+  if (items.length === 0) throw new Error("empty");
+  return items.slice(0, 10);
+}
+
+async function fetchNews(query) {
+  const results = [];
+  const fetchers = [
+    scrapeNaverNews(query).catch(() => []),
+    fetchGoogleRSS(query).catch(() => []),
+    scrapeDaumNews(query).catch(() => []),
+  ];
+  const all = await Promise.all(fetchers);
+  for (const items of all) {
+    if (Array.isArray(items)) results.push(...items);
+  }
+  if (results.length === 0) throw new Error("no news");
+  return results;
 }
 
 app.get("/api/news", async (req, res) => {
@@ -157,9 +192,12 @@ app.get("/api/news", async (req, res) => {
     const data = await cached("news", 5 * 60 * 1000, async () => {
       const cats = [
         ["policy", "부동산 정책 규제"],
+        ["policy", "부동산 대출 금리"],
         ["market", "아파트 매매 시세"],
+        ["market", "부동산 전세 시세 동향"],
         ["auction", "부동산 경매 낙찰"],
         ["supply", "청약 분양 입주"],
+        ["supply", "재건축 재개발 정비사업"],
       ];
       const all = [];
       for (const [cat, q] of cats) {
@@ -580,6 +618,39 @@ app.get("/api/competition", async (req, res) => {
   }
 });
 
+// --------------- 접속자 추적 ---------------
+const activeUsers = {};
+const ACTIVE_TTL = 60000;
+
+function trackVisitor(uid) {
+  activeUsers[uid] = Date.now();
+}
+
+function getOnlineCount() {
+  const now = Date.now();
+  for (const uid of Object.keys(activeUsers)) {
+    if (now - activeUsers[uid] > ACTIVE_TTL) delete activeUsers[uid];
+  }
+  return Object.keys(activeUsers).length;
+}
+
+app.post("/api/heartbeat", async (req, res) => {
+  const { uid } = req.body || {};
+  if (!uid) return res.json({ ok: false });
+  trackVisitor(uid);
+  const online = getOnlineCount();
+  let today = 0;
+  if (kv) {
+    const dateKey = `visitors:${new Date().toISOString().slice(0, 10)}`;
+    try {
+      await kv.sadd(dateKey, uid);
+      await kv.expire(dateKey, 172800);
+      today = await kv.scard(dateKey);
+    } catch {}
+  }
+  res.json({ ok: true, online, today });
+});
+
 // --------------- 실시간 채팅 (KV 영속) ---------------
 let chatMessages = [];
 let chatIdCounter = 1;
@@ -618,8 +689,6 @@ function generateNickname(uid) {
   return `${prefix}${suffix}`;
 }
 
-app.use(express.json());
-
 app.get("/api/chat", async (req, res) => {
   await loadChatHistory();
   const since = parseInt(req.query.since) || 0;
@@ -629,8 +698,7 @@ app.get("/api/chat", async (req, res) => {
   res.json({
     ok: true,
     messages: msgs,
-    online:
-      Object.keys(chatBanMap).length || Math.floor(Math.random() * 20) + 5,
+    online: getOnlineCount() || 1,
   });
 });
 

@@ -557,7 +557,7 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
 
 <div class="status-bar">
   <div class="sl"><span id="statusReady">준비</span><span>|</span><span id="statusInfo">서버 연결 중...</span></div>
-  <div class="sr"><span>−</span><input type="range" min="50" max="200" value="100" id="zoomSlider"><span>+</span><span id="zoomVal">100%</span></div>
+  <div class="sr"><span id="liveStats" style="font-size:10px;margin-right:12px;opacity:.9">👤 접속 0명 · 오늘 0명</span><span>−</span><input type="range" min="50" max="200" value="100" id="zoomSlider"><span>+</span><span id="zoomVal">100%</span></div>
 </div>
 
 <script>
@@ -589,7 +589,7 @@ function setupAreaSelect(){
   const inSh=c=>sh==='all'||(sh==='samsung'&&SHUTTLE.samsung.has(c))||(sh==='skhynix'&&SHUTTLE.skhynix.has(c))||(sh==='both'&&SHUTTLE.samsung.has(c)&&SHUTTLE.skhynix.has(c));
   const s=Object.keys(AREAS).filter(c=>c.startsWith('11')&&inSh(c)),g=Object.keys(AREAS).filter(c=>c.startsWith('41')&&inSh(c));
   const prev=sel.value;
-  let h='';
+  let h=sh!=='all'?'<option value="_shuttle_all">🔍 셔세권 전체 검색</option>':'';
   if(s.length){h+='<optgroup label="서울">';s.forEach(c=>h+=`<option value="${c}">${AREAS[c]}${shuttleTag(c)}</option>`);h+='</optgroup>'}
   if(g.length){h+='<optgroup label="경기">';g.forEach(c=>h+=`<option value="${c}">${AREAS[c]}${shuttleTag(c)}</option>`);h+='</optgroup>'}
   sel.innerHTML=h||'<option value="">해당 셔세권 지역 없음</option>';
@@ -626,6 +626,25 @@ async function loadTrades(){
   if(!hasApiKey){showNoKey('trBody',10);return}
   const area=document.getElementById('areaSelect').value,month=document.getElementById('monthSelect').value;
   const el=document.getElementById('trBody'),st=document.getElementById('tradeStatus');
+
+  if(area==='_shuttle_all'){
+    el.innerHTML='<tr><td colspan="10" class="loading">셔세권 전체 지역 조회중...</td></tr>';st.textContent='조회중...';
+    const sh=document.getElementById('filterShuttle').value;
+    const codes=[...document.getElementById('areaSelect').options].filter(o=>o.value&&o.value!=='_shuttle_all').map(o=>o.value);
+    rawTrades=[];
+    let done=0;
+    try{
+      for(const code of codes){
+        const{ok,data,areaName}=await fetch(`/api/trades?area=${code}&month=${month}`).then(r=>r.json());
+        if(ok&&data.length)rawTrades.push(...data.map(t=>({...t,_area:parseFloat(t.area)||0,_price:parseInt(String(t.price).replace(/[, ]/g,''))||0,_areaName:areaName})));
+        done++;
+        st.textContent=`조회중... ${done}/${codes.length}`;
+      }
+      applyFilters();
+    }catch(e){el.innerHTML=`<tr><td colspan="10" class="error-box">조회 실패: ${esc(e.message)}</td></tr>`;st.textContent='오류'}
+    return;
+  }
+
   el.innerHTML='<tr><td colspan="10" class="loading">실거래 데이터 조회중...</td></tr>';st.textContent='조회중...';
   try{
     const{ok,data,areaName,error}=await fetch(`/api/trades?area=${area}&month=${month}`).then(r=>r.json());
@@ -738,6 +757,19 @@ function showNoKey(id,cols){document.getElementById(id).innerHTML=`<tr><td colsp
 function switchSheet(name,el){document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));document.getElementById('s-'+name).classList.add('active');el.classList.add('active');const fx={indicators:'=REALTIME_SUMMARY()',policy:'=NEWS("부동산 정책") + DISCUSS("토론방")',trades:'=DATA_GO_KR("실거래가")',auction:'=COURT_AUCTION()',subscription:'=APPLY_HOME()'};document.getElementById('fxContent').textContent=fx[name]||''}
 function refreshAll(){location.reload()}
 document.getElementById('zoomSlider').addEventListener('input',function(){document.getElementById('zoomVal').textContent=this.value+'%';document.querySelector('.sheet-area').style.zoom=this.value/100});
+
+async function heartbeat(){
+  try{
+    const{ok,online,today}=await fetch('/api/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:chatUid})}).then(r=>r.json());
+    if(ok){
+      const el=document.getElementById('liveStats');
+      el.textContent=`👤 접속 ${online}명 · 오늘 ${today}명`;
+      document.getElementById('visitorCount').textContent=`접속 ${online}명`;
+      document.getElementById('chatOnline').textContent=`${online}명 접속중`;
+    }
+  }catch{}
+}
+heartbeat();setInterval(heartbeat,30000);
 document.addEventListener('DOMContentLoaded',init);
 setInterval(()=>loadNews(),5*60*1000);
 
