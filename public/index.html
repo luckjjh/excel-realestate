@@ -126,6 +126,28 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
 .filter-bar button.primary:hover{background:var(--excel-dark)}
 .filter-bar .count{color:var(--excel);font-weight:600;margin-left:auto}
 
+/* ===== KPI CARDS ===== */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.kpi-card{background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:14px 16px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi-card.c-blue::before{background:var(--excel)}
+.kpi-card.c-green::before{background:#4caf50}
+.kpi-card.c-orange::before{background:#ff9800}
+.kpi-card.c-purple::before{background:#7c4dff}
+.kpi-label{font-size:10px;color:#999;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.kpi-value{font-size:22px;font-weight:700;color:#222;line-height:1.2}
+.kpi-sub{font-size:11px;color:#888;margin-top:4px;display:flex;align-items:center;gap:4px}
+.kpi-up{color:var(--up)}
+.kpi-down{color:var(--dn)}
+.kpi-badge{display:inline-block;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:600}
+.kpi-badge.up{background:#ffebee;color:var(--up)}
+.kpi-badge.down{background:#e3f2fd;color:var(--dn)}
+.kpi-badge.flat{background:#f5f5f5;color:#999}
+
+.ind-table-wrap{margin-top:0}
+.ind-bar{height:4px;border-radius:2px;background:#e8f5e9;margin-top:4px}
+.ind-bar-fill{height:100%;border-radius:2px;background:var(--excel);transition:width .5s}
+
 /* ===== SHEET TABS ===== */
 .sheet-tabs{background:#f0f0f0;border-top:1px solid #b0b0b0;display:flex;align-items:center;height:28px;padding:0 4px}
 .sheet-tabs .nav{display:flex;gap:2px;margin-right:8px}
@@ -387,11 +409,35 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
 
     <!-- 주요지표 -->
     <div class="sheet active" id="s-indicators">
-      <table class="xl"><thead>
-        <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:180px">B</th><th class="ch" style="width:120px">C</th><th class="ch" style="width:100px">D</th><th class="ch" style="width:140px">E</th></tr>
-        <tr><td class="rn">1</td><td colspan="5" class="section-row" style="background:var(--sel)">실거래 기반 주요지표 <span style="color:#888;font-size:10px" id="indMonth"></span></td></tr>
-        <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">지역</td><td class="b r">평균 매매가</td><td class="b r">84㎡ 평균</td><td class="b r">거래건수(당월)</td></tr>
-      </thead><tbody id="indBody"><tr><td colspan="6" class="loading">데이터 불러오는 중...</td></tr></tbody></table>
+      <div class="kpi-row" id="kpiCards">
+        <div class="kpi-card c-blue">
+          <div class="kpi-label">서울 평균 매매가</div>
+          <div class="kpi-value" id="kpiAvgPrice">-</div>
+          <div class="kpi-sub" id="kpiAvgSub">데이터 로딩중...</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-label">당월 거래량</div>
+          <div class="kpi-value" id="kpiVolume">-</div>
+          <div class="kpi-sub" id="kpiVolSub">서울 주요 10개구</div>
+        </div>
+        <div class="kpi-card c-orange">
+          <div class="kpi-label">최고가 지역</div>
+          <div class="kpi-value" id="kpiTopArea">-</div>
+          <div class="kpi-sub" id="kpiTopSub"></div>
+        </div>
+        <div class="kpi-card c-purple">
+          <div class="kpi-label">84㎡ 평균</div>
+          <div class="kpi-value" id="kpi84Avg">-</div>
+          <div class="kpi-sub" id="kpi84Sub">국민평형 기준</div>
+        </div>
+      </div>
+      <div class="ind-table-wrap">
+        <table class="xl"><thead>
+          <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:160px">B</th><th class="ch" style="width:120px">C</th><th class="ch" style="width:100px">D</th><th class="ch" style="width:80px">E</th><th class="ch" style="width:130px">F</th></tr>
+          <tr><td class="rn">1</td><td colspan="6" class="section-row" style="background:var(--sel)">서울 주요 지역 실거래 현황 <span style="color:#888;font-size:10px" id="indMonth"></span></td></tr>
+          <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">지역</td><td class="b r">평균 매매가</td><td class="b r">84㎡ 평균</td><td class="b r">거래건수</td><td class="b">거래비중</td></tr>
+        </thead><tbody id="indBody"><tr><td colspan="7" class="loading">데이터 불러오는 중...</td></tr></tbody></table>
+      </div>
     </div>
 
     <!-- 정책뉴스 -->
@@ -579,7 +625,7 @@ async function init(){
     hasApiKey=cfg.hasApiKey;AREAS=areas;
     document.getElementById('statusInfo').textContent=hasApiKey?'실거래 API 연결됨':'뉴스만 활성 (실거래 API 키 미설정)';
     setupAreaSelect();loadNews();
-    if(hasApiKey){loadSummary();loadSubscriptions()}else showNoKey('indBody',6);
+    if(hasApiKey){loadSummary();loadSubscriptions()}else showNoKey('indBody',7);
   }catch{document.getElementById('statusInfo').textContent='서버 연결 실패';document.getElementById('newsList').innerHTML='<div class="error-box">서버에 연결할 수 없습니다</div>'}
 }
 
@@ -616,9 +662,34 @@ function filterNews(cat,el){document.querySelectorAll('.ptab').forEach(t=>t.clas
 
 async function loadSummary(){
   const el=document.getElementById('indBody');
-  try{const{ok,data,month}=await fetch('/api/summary').then(r=>r.json());if(!ok){showNoKey('indBody',6);return}if(!data.length){el.innerHTML='<tr><td colspan="6" class="loading">실거래 데이터가 아직 없습니다</td></tr>';return}
-  document.getElementById('indMonth').textContent=`${month.slice(0,4)}년 ${parseInt(month.slice(4))}월 실거래 기준`;
-  el.innerHTML=data.map((d,i)=>`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td class="b">${esc(d.name)}</td><td class="r b">${fmtPrice(d.avgPrice)}</td><td class="r">${d.avg84?fmtPrice(d.avg84):'-'}</td><td class="r">${d.count}건</td></tr>`).join('')}catch(e){el.innerHTML=`<tr><td colspan="6" class="error-box">${esc(e.message)}</td></tr>`}
+  try{
+    const{ok,data,month}=await fetch('/api/summary').then(r=>r.json());
+    if(!ok){showNoKey('indBody',7);return}
+    if(!data.length){el.innerHTML='<tr><td colspan="7" class="loading">실거래 데이터가 아직 없습니다</td></tr>';return}
+    document.getElementById('indMonth').textContent=`${month.slice(0,4)}년 ${parseInt(month.slice(4))}월 실거래 기준`;
+
+    const totalCount=data.reduce((s,d)=>s+d.count,0);
+    const totalAvg=totalCount>0?Math.round(data.reduce((s,d)=>s+d.avgPrice*d.count,0)/totalCount):0;
+    const all84=data.filter(d=>d.avg84>0);
+    const avg84=all84.length>0?Math.round(all84.reduce((s,d)=>s+d.avg84,0)/all84.length):0;
+    const maxCount=Math.max(...data.map(d=>d.count));
+
+    const sorted=[...data].sort((a,b)=>b.avgPrice-a.avgPrice);
+    const top=sorted[0];
+
+    document.getElementById('kpiAvgPrice').textContent=fmtPrice(totalAvg);
+    document.getElementById('kpiAvgSub').innerHTML=`<span>${month.slice(0,4)}년 ${parseInt(month.slice(4))}월 기준</span>`;
+    document.getElementById('kpiVolume').textContent=totalCount.toLocaleString()+'건';
+    document.getElementById('kpiTopArea').textContent=top?top.name:'-';
+    document.getElementById('kpiTopSub').innerHTML=top?`평균 ${fmtPrice(top.avgPrice)} · ${top.count}건`:'';
+    document.getElementById('kpi84Avg').textContent=fmtPrice(avg84);
+
+    el.innerHTML=sorted.map((d,i)=>{
+      const pct=maxCount>0?Math.round(d.count/maxCount*100):0;
+      const rank=i===0?'🥇':i===1?'🥈':i===2?'🥉':''+(i+1);
+      return`<tr><td class="rn">${i+3}</td><td class="c">${rank}</td><td class="b">${esc(d.name)}</td><td class="r b vu">${fmtPrice(d.avgPrice)}</td><td class="r">${d.avg84?fmtPrice(d.avg84):'-'}</td><td class="r">${d.count}건</td><td><div class="ind-bar"><div class="ind-bar-fill" style="width:${pct}%"></div></div></td></tr>`;
+    }).join('');
+  }catch(e){el.innerHTML=`<tr><td colspan="7" class="error-box">${esc(e.message)}</td></tr>`}
 }
 
 // ---- Trades with filtering ----
