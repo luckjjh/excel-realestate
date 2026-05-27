@@ -409,8 +409,8 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
       <table class="kpi-grid"><tbody>
         <tr>
           <td class="rn" style="width:40px;text-align:center;background:#f8f8f8;color:#888;border-right:2px solid #b0b0b0">1</td>
-          <td><div class="kpi-label">서울 평균 매매가</div><div class="kpi-value" id="kpiAvgPrice" style="color:var(--up)">-</div><div class="kpi-sub" id="kpiAvgSub">로딩중...</div></td>
-          <td><div class="kpi-label">당월 거래량</div><div class="kpi-value" id="kpiVolume">-</div><div class="kpi-sub" id="kpiVolSub">서울 주요 10개구</div></td>
+          <td><div class="kpi-label">수도권 평균 매매가</div><div class="kpi-value" id="kpiAvgPrice" style="color:var(--up)">-</div><div class="kpi-sub" id="kpiAvgSub">로딩중...</div></td>
+          <td><div class="kpi-label">당월 거래량</div><div class="kpi-value" id="kpiVolume">-</div><div class="kpi-sub" id="kpiVolSub">수도권 주요 지역</div></td>
           <td><div class="kpi-label">최고가 지역</div><div class="kpi-value" id="kpiTopArea">-</div><div class="kpi-sub" id="kpiTopSub"></div></td>
           <td><div class="kpi-label">84㎡ 국민평형</div><div class="kpi-value" id="kpi84Avg">-</div><div class="kpi-sub" id="kpi84Sub">국민평형 기준</div></td>
         </tr>
@@ -418,7 +418,7 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
       <div class="ind-table-wrap">
         <table class="xl"><thead>
           <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:160px">B</th><th class="ch" style="width:120px">C</th><th class="ch" style="width:100px">D</th><th class="ch" style="width:80px">E</th><th class="ch" style="width:130px">F</th></tr>
-          <tr><td class="rn">1</td><td colspan="6" class="section-row" style="background:var(--sel)">서울 주요 지역 실거래 현황 <span style="color:#888;font-size:10px" id="indMonth"></span></td></tr>
+          <tr><td class="rn">1</td><td colspan="6" class="section-row" style="background:var(--sel)">수도권 주요 지역 실거래 현황 <span style="color:#888;font-size:10px" id="indMonth"></span></td></tr>
           <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">지역</td><td class="b r">평균 매매가</td><td class="b r">84㎡ 평균</td><td class="b r">거래건수</td><td class="b">거래비중</td></tr>
         </thead><tbody id="indBody"><tr><td colspan="7" class="loading">데이터 불러오는 중...</td></tr></tbody></table>
       </div>
@@ -668,11 +668,25 @@ async function loadSummary(){
     document.getElementById('kpiTopSub').innerHTML=top?`평균 ${fmtPrice(top.avgPrice)} · ${top.count}건`:'';
     document.getElementById('kpi84Avg').textContent=fmtPrice(avg84);
 
-    el.innerHTML=sorted.map((d,i)=>{
-      const pct=maxCount>0?Math.round(d.count/maxCount*100):0;
-      const rank=i===0?'🥇':i===1?'🥈':i===2?'🥉':''+(i+1);
-      return`<tr><td class="rn">${i+3}</td><td class="c">${rank}</td><td class="b">${esc(d.name)}</td><td class="r b vu">${fmtPrice(d.avgPrice)}</td><td class="r">${d.avg84?fmtPrice(d.avg84):'-'}</td><td class="r">${d.count}건</td><td><div class="ind-bar"><div class="ind-bar-fill" style="width:${pct}%"></div></div></td></tr>`;
-    }).join('');
+    const seoul=sorted.filter(d=>d.code.startsWith('11'));
+    const gg=sorted.filter(d=>d.code.startsWith('41'));
+    let rows='',rowNum=3;
+    if(seoul.length){
+      rows+=`<tr><td class="rn">${rowNum++}</td><td colspan="6" style="background:#e3f2fd;font-weight:700;font-size:11px;color:#1565c0">서울 (${seoul.length}개구)</td></tr>`;
+      seoul.forEach((d,i)=>{
+        const pct=maxCount>0?Math.round(d.count/maxCount*100):0;
+        const rank=i===0?'🥇':i===1?'🥈':i===2?'🥉':''+(i+1);
+        rows+=`<tr><td class="rn">${rowNum++}</td><td class="c">${rank}</td><td class="b">${esc(d.name)}</td><td class="r b vu">${fmtPrice(d.avgPrice)}</td><td class="r">${d.avg84?fmtPrice(d.avg84):'-'}</td><td class="r">${d.count}건</td><td><div class="ind-bar"><div class="ind-bar-fill" style="width:${pct}%"></div></div></td></tr>`;
+      });
+    }
+    if(gg.length){
+      rows+=`<tr><td class="rn">${rowNum++}</td><td colspan="6" style="background:#e8f5e9;font-weight:700;font-size:11px;color:#2e7d32">경기 (${gg.length}개 지역)</td></tr>`;
+      gg.forEach((d,i)=>{
+        const pct=maxCount>0?Math.round(d.count/maxCount*100):0;
+        rows+=`<tr><td class="rn">${rowNum++}</td><td class="c">${i+1}</td><td class="b">${esc(d.name)}</td><td class="r b vu">${fmtPrice(d.avgPrice)}</td><td class="r">${d.avg84?fmtPrice(d.avg84):'-'}</td><td class="r">${d.count}건</td><td><div class="ind-bar"><div class="ind-bar-fill" style="width:${pct}%"></div></div></td></tr>`;
+      });
+    }
+    el.innerHTML=rows;
   }catch(e){el.innerHTML=`<tr><td colspan="7" class="error-box">${esc(e.message)}</td></tr>`}
 }
 

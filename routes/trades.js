@@ -65,18 +65,23 @@ router.get("/api/summary", async (req, res) => {
     ? `${now.getFullYear() - 1}12`
     : `${now.getFullYear()}${String(now.getMonth()).padStart(2, "0")}`;
   const keyAreas = [
+    // 서울
     "11680", "11650", "11710", "11170", "11440",
     "11200", "11560", "11470", "11590", "11350",
+    "11740", "11500", "11230", "11290", "11110",
+    // 경기 주요
+    "41135", "41117", "41597", "41465", "41285",
+    "41570", "41360", "41190", "41173", "41450",
   ];
   try {
-    const data = await cached(`summary_${ym}`, 60 * 60 * 1000, async () => {
+    async function fetchSummaryForMonth(targetYm) {
       const results = [];
       for (const area of keyAreas) {
         try {
           const { data: resp } = await axios.get(TRADE_API, {
             params: {
-              serviceKey: API_KEY, LAWD_CD: area, DEAL_YMD: ym,
-              numOfRows: 200, pageNo: 1,
+              serviceKey: API_KEY, LAWD_CD: area, DEAL_YMD: targetYm,
+              numOfRows: 500, pageNo: 1,
             },
             headers: { "User-Agent": UA },
             timeout: 15000,
@@ -95,12 +100,21 @@ router.get("/api/summary", async (req, res) => {
           const avg84 = items84.length > 0
             ? Math.round(items84.reduce((s, i) => s + i.price, 0) / items84.length)
             : 0;
-          results.push({ code: area, name: AREAS[area], count, avgPrice, avg84, month: ym });
+          const region = area.startsWith("11") ? "서울" : "경기";
+          results.push({ code: area, name: AREAS[area], count, avgPrice, avg84, month: targetYm, region });
         } catch {}
       }
       return results;
-    });
-    res.json({ ok: true, data, month: ym, prevMonth: prev });
+    }
+
+    let data = await cached(`summary_${ym}`, 60 * 60 * 1000, () => fetchSummaryForMonth(ym));
+    let usedMonth = ym;
+    const totalCount = data.reduce((s, d) => s + d.count, 0);
+    if (totalCount < 10) {
+      data = await cached(`summary_${prev}`, 60 * 60 * 1000, () => fetchSummaryForMonth(prev));
+      usedMonth = prev;
+    }
+    res.json({ ok: true, data, month: usedMonth, prevMonth: prev });
   } catch (e) {
     res.json({ ok: false, error: e.message });
   }
