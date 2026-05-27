@@ -130,23 +130,12 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
 .filter-bar button.primary:hover{background:var(--excel-dark)}
 .filter-bar .count{color:var(--excel);font-weight:600;margin-left:auto}
 
-/* ===== KPI CARDS ===== */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
-.kpi-card{background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:14px 16px;position:relative;overflow:hidden}
-.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.kpi-card.c-blue::before{background:var(--excel)}
-.kpi-card.c-green::before{background:#4caf50}
-.kpi-card.c-orange::before{background:#ff9800}
-.kpi-card.c-purple::before{background:#7c4dff}
-.kpi-label{font-size:10px;color:#999;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
-.kpi-value{font-size:22px;font-weight:700;color:#222;line-height:1.2}
-.kpi-sub{font-size:11px;color:#888;margin-top:4px;display:flex;align-items:center;gap:4px}
-.kpi-up{color:var(--up)}
-.kpi-down{color:var(--dn)}
-.kpi-badge{display:inline-block;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:600}
-.kpi-badge.up{background:#ffebee;color:var(--up)}
-.kpi-badge.down{background:#e3f2fd;color:var(--dn)}
-.kpi-badge.flat{background:#f5f5f5;color:#999}
+/* ===== KPI (엑셀 셀 스타일) ===== */
+.kpi-grid{border-collapse:collapse;width:100%;margin-bottom:0;table-layout:fixed}
+.kpi-grid td{border:1px solid #c4c4c4;padding:6px 10px;vertical-align:top;background:#fff}
+.kpi-grid .kpi-label{font-size:10px;color:#888;font-weight:600}
+.kpi-grid .kpi-value{font-size:18px;font-weight:700;color:#222;padding:2px 0}
+.kpi-grid .kpi-sub{font-size:10px;color:#999}
 
 .ind-table-wrap{margin-top:0}
 .ind-bar{height:4px;border-radius:2px;background:#e8f5e9;margin-top:4px}
@@ -414,28 +403,18 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
 
     <!-- 주요지표 -->
     <div class="sheet active" id="s-indicators">
-      <div class="kpi-row" id="kpiCards">
-        <div class="kpi-card c-blue">
-          <div class="kpi-label">서울 평균 매매가</div>
-          <div class="kpi-value" id="kpiAvgPrice">-</div>
-          <div class="kpi-sub" id="kpiAvgSub">데이터 로딩중...</div>
-        </div>
-        <div class="kpi-card c-green">
-          <div class="kpi-label">당월 거래량</div>
-          <div class="kpi-value" id="kpiVolume">-</div>
-          <div class="kpi-sub" id="kpiVolSub">서울 주요 10개구</div>
-        </div>
-        <div class="kpi-card c-orange">
-          <div class="kpi-label">최고가 지역</div>
-          <div class="kpi-value" id="kpiTopArea">-</div>
-          <div class="kpi-sub" id="kpiTopSub"></div>
-        </div>
-        <div class="kpi-card c-purple">
-          <div class="kpi-label">84㎡ 평균</div>
-          <div class="kpi-value" id="kpi84Avg">-</div>
-          <div class="kpi-sub" id="kpi84Sub">국민평형 기준</div>
-        </div>
-      </div>
+      <table class="xl"><thead>
+        <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:160px">B</th><th class="ch" style="width:160px">C</th><th class="ch" style="width:160px">D</th><th class="ch" style="width:160px">E</th></tr>
+      </thead></table>
+      <table class="kpi-grid"><tbody>
+        <tr>
+          <td class="rn" style="width:40px;text-align:center;background:#f8f8f8;color:#888;border-right:2px solid #b0b0b0">1</td>
+          <td><div class="kpi-label">서울 평균 매매가</div><div class="kpi-value" id="kpiAvgPrice" style="color:var(--up)">-</div><div class="kpi-sub" id="kpiAvgSub">로딩중...</div></td>
+          <td><div class="kpi-label">당월 거래량</div><div class="kpi-value" id="kpiVolume">-</div><div class="kpi-sub" id="kpiVolSub">서울 주요 10개구</div></td>
+          <td><div class="kpi-label">최고가 지역</div><div class="kpi-value" id="kpiTopArea">-</div><div class="kpi-sub" id="kpiTopSub"></div></td>
+          <td><div class="kpi-label">84㎡ 국민평형</div><div class="kpi-value" id="kpi84Avg">-</div><div class="kpi-sub" id="kpi84Sub">국민평형 기준</div></td>
+        </tr>
+      </tbody></table>
       <div class="ind-table-wrap">
         <table class="xl"><thead>
           <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:160px">B</th><th class="ch" style="width:120px">C</th><th class="ch" style="width:100px">D</th><th class="ch" style="width:80px">E</th><th class="ch" style="width:130px">F</th></tr>
