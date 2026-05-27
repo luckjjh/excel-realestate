@@ -789,6 +789,102 @@ app.get("/api/price-history", async (req, res) => {
   }
 });
 
+// --------------- 법원경매 (courtauction.go.kr) ---------------
+// 메인 페이지의 "주요 관심물건" API를 사용. 검색 API는 IP 차단 정책이 있어 사용 안 함.
+// HTTP/2가 hang 됨 → axios http agent에 forceHTTP1 효과로 그냥 axios 사용 (Node http2 미사용).
+async function fetchCourtAuctionItems() {
+  const indexUrl = "https://www.courtauction.go.kr/pgj/index.on";
+  const apiUrl =
+    "https://www.courtauction.go.kr/pgj/pgj111/selectRletYrDspslStats.on";
+  const baseHeaders = {
+    "User-Agent": UA,
+    "Accept-Language": "ko-KR,ko;q=0.9",
+  };
+  // 1. index 진입으로 JSESSIONID/WMONID 발급
+  const r1 = await axios.get(indexUrl, {
+    headers: baseHeaders,
+    timeout: 15000,
+    maxRedirects: 0,
+    validateStatus: (s) => s < 400,
+  });
+  const setCookies = r1.headers["set-cookie"] || [];
+  const cookieHeader = setCookies
+    .map((c) => c.split(";")[0])
+    .filter(Boolean)
+    .join("; ");
+  if (!cookieHeader.includes("JSESSIONID")) {
+    throw new Error("JSESSIONID not issued");
+  }
+  // 2. 주요 관심물건 호출
+  const r2 = await axios.post(
+    apiUrl,
+    { dma_nonData: {} },
+    {
+      headers: {
+        ...baseHeaders,
+        "Content-Type": "application/json;charset=UTF-8",
+        Accept: "application/json",
+        Referer: indexUrl,
+        Origin: "https://www.courtauction.go.kr",
+        "X-Requested-With": "XMLHttpRequest",
+        Cookie: cookieHeader,
+      },
+      timeout: 20000,
+    },
+  );
+  if (r2.data?.message && r2.data.message !== "정상") {
+    throw new Error(r2.data.message);
+  }
+  const items = r2.data?.data?.result?.mjrtyItrtGds || [];
+  return items.map((x) => {
+    const ymd = String(x.maeGiil || "");
+    const saleDate =
+      ymd.length === 8 ? `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}` : "";
+    const yuchal = parseInt(x.yuchalCnt || "0", 10);
+    const status = yuchal > 0 ? `${yuchal}회 유찰` : "진행";
+    return {
+      caseNo: String(x.srnSaNo || ""),
+      court: String(x.jiwonNm || ""),
+      dept: String(x.jpDeptNm || ""),
+      address: String(x.printSt || ""),
+      sido: String(x.hjguSido || ""),
+      sigu: String(x.hjguSigu || ""),
+      usage: String(x.dspslUsgNm || ""),
+      buldNm: String(x.buldNm || ""),
+      area: String(x.pjbBuldList || ""),
+      appraisal: String(x.gamevalAmt || ""),
+      minPrice: String(x.minmaePrice || ""),
+      saleDate,
+      saleHour: String(x.maeHh1 || ""),
+      yuchalCnt: yuchal,
+      status,
+      // 상세 페이지 링크: 사건번호 기반
+      detailUrl: `https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ152F00.xml&srnSaNo=${encodeURIComponent(
+        x.srnSaNo || "",
+      )}`,
+    };
+  });
+}
+
+app.get("/api/auction", async (req, res) => {
+  const sido = req.query.sido || "";
+  try {
+    // 12시간 캐싱 (메인페이지 매물 갱신 빈도 낮음, IP 차단 회피)
+    const all = await cached("auction_main", 12 * 60 * 60 * 1000, fetchCourtAuctionItems);
+    const data = sido ? all.filter((x) => x.sido === sido) : all;
+    res.json({
+      ok: true,
+      data,
+      total: all.length,
+      filtered: data.length,
+      sido,
+      note: "법원경매정보 메인페이지 '주요 관심물건' (전국 단일 리스트, 시도 필터는 결과 내 필터링)",
+    });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
 app.get("/api/config", (_, res) => res.json({ hasApiKey: !!API_KEY }));
 
 if (!process.env.VERCEL) {
