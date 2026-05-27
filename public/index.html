@@ -591,7 +591,7 @@ function applyFilters(){
   const el=document.getElementById('trBody');
   if(!f.length){el.innerHTML='<tr><td colspan="10" class="loading">조건에 맞는 거래가 없습니다</td></tr>';return}
   const curArea=document.getElementById('areaSelect').value;
-  el.innerHTML=f.map((t,i)=>`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td>${esc(t._areaName)}</td><td><span class="apt-link" onclick="showChart('${curArea}','${esc(t.name)}')">${esc(t.name)}</span></td><td class="c">${Math.round(t._area)}㎡</td><td class="c">${esc(t.floor)}</td><td class="r b vu">${fmtPrice(t.price)}</td><td class="c">${t.month}.${t.day}</td><td class="c">${esc(t.built)}</td><td>${esc(t.dong)}</td></tr>`).join('');
+  el.innerHTML=f.map((t,i)=>`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td>${esc(t._areaName)}</td><td><span class="apt-link" onclick="showChart('${curArea}','${esc(t.name)}')">${esc(t.name)}</span> <span class="apt-link" style="font-size:10px;margin-left:4px;color:#1565c0" onclick="showListings('${esc(t.name)}','${esc(t.dong)}')">매물</span></td><td class="c">${Math.round(t._area)}㎡</td><td class="c">${esc(t.floor)}</td><td class="r b vu">${fmtPrice(t.price)}</td><td class="c">${t.month}.${t.day}</td><td class="c">${esc(t.built)}</td><td>${esc(t.dong)}</td></tr>`).join('');
 }
 document.getElementById('filterArea').addEventListener('change',()=>{if(rawTrades.length)applyFilters()});
 document.getElementById('filterPrice').addEventListener('change',()=>{if(rawTrades.length)applyFilters()});
@@ -751,6 +751,40 @@ document.querySelectorAll('.tabs span').forEach(tab=>{
 
 // ---- Chart ----
 function closeChart(){document.getElementById('chartOverlay').classList.remove('open')}
+
+// ---- Listings (외부 부동산 사이트 링크) ----
+function showListings(apt, dong){
+  document.getElementById('chartOverlay').classList.add('open');
+  document.getElementById('chartTitle').innerHTML=`${esc(apt)} <small>${esc(dong||'')} · 매물 조회</small>`;
+  const body=document.getElementById('chartBody');
+  const kw=encodeURIComponent((dong?dong+' ':'')+apt);
+  const sites=[
+    {name:'네이버 부동산',desc:'가장 많은 매물, 전월세 포함',url:`https://m.land.naver.com/search/result/${kw}`,color:'#03c75a',icon:'N'},
+    {name:'KB부동산',desc:'KB시세, 단지정보',url:`https://kbland.kr/search?q=${kw}`,color:'#ffbc00',icon:'K'},
+    {name:'호갱노노',desc:'실거주 후기, 학군, 일조량',url:`https://hogangnono.com/search/${kw}`,color:'#ff6b6b',icon:'호'},
+    {name:'직방',desc:'아파트/오피스텔 매물',url:`https://www.zigbang.com/search?q=${kw}`,color:'#ff6f0f',icon:'직'},
+    {name:'다방',desc:'원/투룸, 빌라 매물',url:`https://www.dabangapp.com/search/${kw}`,color:'#ff8a3d',icon:'다'},
+  ];
+  body.innerHTML=`
+    <div style="padding:12px 8px;font-size:12px;color:#555;border-bottom:1px solid #eee;margin-bottom:12px;background:#fffbe6">
+      <b style="color:#d97706">⚠ 안내</b> &nbsp;부동산 매물 데이터는 각 사이트의 공식 API가 없어 직접 가져올 수 없습니다. 아래 사이트에서 "${esc(apt)}" 매물을 바로 확인하세요.
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;padding:0 8px">
+      ${sites.map(s=>`
+        <a href="${s.url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #ddd;border-radius:6px;text-decoration:none;color:#333;background:#fff;transition:all .15s" onmouseover="this.style.borderColor='${s.color}';this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'" onmouseout="this.style.borderColor='#ddd';this.style.boxShadow='none'">
+          <div style="width:36px;height:36px;border-radius:6px;background:${s.color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0">${s.icon}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px">${esc(s.name)} ↗</div>
+            <div style="font-size:10px;color:#888;margin-top:2px">${esc(s.desc)}</div>
+          </div>
+        </a>
+      `).join('')}
+    </div>
+    <div style="padding:16px 8px 8px;font-size:11px;color:#888;border-top:1px solid #eee;margin-top:16px">
+      💡 새 탭에서 검색 결과 페이지가 열립니다. 단지명/위치가 일치하지 않으면 사이트에서 직접 검색하세요.
+    </div>`;
+}
+
 async function showChart(area,name){
   document.getElementById('chartOverlay').classList.add('open');
   document.getElementById('chartTitle').innerHTML=`${esc(name)} <small>${AREAS[area]||area} · 최근 12개월 실거래</small>`;
