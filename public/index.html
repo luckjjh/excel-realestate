@@ -431,22 +431,31 @@ table.xl tr:hover td:not(.rn){background:#e8f5e9}
         <label>지역:</label>
         <select id="aucSido">
           <option value="">전국</option>
-          <option value="서울특별시">서울</option>
-          <option value="경기도">경기</option>
-          <option value="부산광역시">부산</option>
-          <option value="인천광역시">인천</option>
-          <option value="대구광역시">대구</option>
-          <option value="대전광역시">대전</option>
-          <option value="광주광역시">광주</option>
-          <option value="울산광역시">울산</option>
+          <option value="서울">서울</option>
+          <option value="경기">경기</option>
+          <option value="부산">부산</option>
+          <option value="인천">인천</option>
+          <option value="대구">대구</option>
+          <option value="대전">대전</option>
+          <option value="광주">광주</option>
+          <option value="울산">울산</option>
+          <option value="세종">세종</option>
+          <option value="강원">강원</option>
+          <option value="충북">충북</option>
+          <option value="충남">충남</option>
+          <option value="전북">전북</option>
+          <option value="전남">전남</option>
+          <option value="경북">경북</option>
+          <option value="경남">경남</option>
+          <option value="제주">제주</option>
         </select>
         <button class="primary" onclick="loadAuction()">조회</button>
         <span class="count" id="aucStatus"></span>
-        <span style="color:#888;font-size:10px;margin-left:8px">출처: 법원경매정보 (courtauction.go.kr) · 메인 주요매물 · 12시간 캐싱</span>
+        <span id="aucSource" style="color:#888;font-size:10px;margin-left:8px"></span>
       </div>
       <table class="xl"><thead>
         <tr><th class="rn"></th><th class="ch" style="width:40px">A</th><th class="ch" style="width:120px">B</th><th class="ch" style="width:250px">C</th><th class="ch" style="width:60px">D</th><th class="ch" style="width:120px">E</th><th class="ch" style="width:120px">F</th><th class="ch" style="width:90px">G</th><th class="ch" style="width:80px">H</th></tr>
-        <tr><td class="rn">1</td><td colspan="8" class="section-row">법원경매 주요 매물 <span style="color:#888;font-size:10px">법원경매정보 메인 노출 매물 · 조회한 지역으로 필터링</span></td></tr>
+        <tr><td class="rn">1</td><td colspan="8" class="section-row">법원경매 매물 검색 <span style="color:#888;font-size:10px">전국 17개 시도 지역별 검색 · GitHub Actions 크롤링</span></td></tr>
         <tr class="hdr-row"><td class="rn">2</td><td class="c b">No</td><td class="b">사건번호</td><td class="b">소재지</td><td class="c b">용도</td><td class="r b">감정가</td><td class="r b">최저가</td><td class="c b">매각기일</td><td class="c b">상태</td></tr>
       </thead><tbody id="aucBody"><tr><td colspan="9" class="loading">조회 버튼을 눌러주세요</td></tr></tbody></table>
       <table class="xl" style="margin-top:16px"><thead>
@@ -662,17 +671,20 @@ function applySubFilters(){
 ['subFilterRegion','subFilterType','subFilterStatus'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{if(rawSubs.length)applySubFilters()}));
 
 async function loadAuction(){
-  const el=document.getElementById('aucBody'),st=document.getElementById('aucStatus');
+  const el=document.getElementById('aucBody'),st=document.getElementById('aucStatus'),srcEl=document.getElementById('aucSource');
   const sido=document.getElementById('aucSido').value;
-  el.innerHTML='<tr><td colspan="9" class="loading">법원경매 데이터 불러오는 중...</td></tr>';st.textContent='로딩중...';
+  el.innerHTML='<tr><td colspan="9" class="loading">법원경매 데이터 불러오는 중...</td></tr>';st.textContent='로딩중...';srcEl.textContent='';
   try{
-    const{ok,data,total,filtered,error}=await fetch(`/api/auction?sido=${encodeURIComponent(sido)}`).then(r=>r.json());
-    if(!ok)throw new Error(error);
+    const r=await fetch(`/api/auction?sido=${encodeURIComponent(sido)}`).then(r=>r.json());
+    if(!r.ok)throw new Error(r.error);
+    const{data,total,filtered,source,crawledAt}=r;
     if(!data.length){
       el.innerHTML=`<tr><td colspan="9" class="loading">선택한 지역의 매물이 없습니다 (전체 ${total||0}건 중 0건). 다른 지역을 선택해보세요.</td></tr>`;
       st.textContent='0건';return;
     }
-    st.textContent=`${filtered}/${total}건`;
+    st.textContent=`${filtered||data.length}/${total}건`;
+    if(source==='crawl'&&crawledAt){srcEl.textContent=`출처: 법원경매정보 지역별 크롤링 · ${crawledAt.slice(0,16).replace('T',' ')}`;}
+    else{srcEl.textContent='출처: 법원경매정보 메인 주요매물 (fallback) · 12시간 캐싱';}
     el.innerHTML=data.map((a,i)=>{
       const appr=a.appraisal?Number(a.appraisal).toLocaleString()+'원':'-';
       const min=a.minPrice?Number(a.minPrice).toLocaleString()+'원':'-';
@@ -680,7 +692,7 @@ async function loadAuction(){
       const addr=a.detailUrl?`<a href="${esc(a.detailUrl)}" target="_blank" style="color:#0078d4;text-decoration:none">${esc(a.address)}</a>`:esc(a.address);
       return`<tr><td class="rn">${i+3}</td><td class="c">${i+1}</td><td class="b">${esc(a.caseNo)}</td><td>${addr}</td><td class="c">${esc(a.usage)}</td><td class="r">${appr}</td><td class="r b vu">${min}</td><td class="c">${esc(a.saleDate)}</td><td class="c">${statusTag}</td></tr>`
     }).join('');
-  }catch(e){el.innerHTML=`<tr><td colspan="9" class="error-box">로딩 실패: ${esc(e.message)}<br><small>법원경매 사이트 접속이 일시적으로 차단되었을 수 있습니다 (12시간 후 재시도)</small></td></tr>`;st.textContent='오류'}
+  }catch(e){el.innerHTML=`<tr><td colspan="9" class="error-box">로딩 실패: ${esc(e.message)}<br><small>법원경매 사이트 접속이 일시적으로 차단되었을 수 있습니다</small></td></tr>`;st.textContent='오류'}
 }
 
 function showNoKey(id,cols){document.getElementById(id).innerHTML=`<tr><td colspan="${cols}"><div class="guide-box"><h3>공공데이터포털 API 키 설정 필요</h3>실거래가 데이터를 보려면 무료 API 키가 필요합니다:<br>1. <a href="https://www.data.go.kr" target="_blank">data.go.kr</a> 회원가입<br>2. "국토교통부_아파트매매 실거래 상세 자료" 활용 신청<br>3. <code>DATA_API_KEY=키 bun run server.js</code></div></td></tr>`}

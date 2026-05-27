@@ -790,9 +790,37 @@ app.get("/api/price-history", async (req, res) => {
 });
 
 // --------------- 법원경매 (courtauction.go.kr) ---------------
-// 메인 페이지의 "주요 관심물건" API를 사용. 검색 API는 IP 차단 정책이 있어 사용 안 함.
-// HTTP/2가 hang 됨 → axios http agent에 forceHTTP1 효과로 그냥 axios 사용 (Node http2 미사용).
-async function fetchCourtAuctionItems() {
+// GitHub Actions(scripts/crawl-auction.js)에서 지역별 크롤링 → Upstash KV 저장.
+// 서버는 KV에서 캐시된 결과를 서빙. IP 차단 회피.
+// fallback: KV 미설정 시 메인페이지 "주요 관심물건"만 제공.
+
+const AUCTION_SIDO_MAP = {
+  "11": "서울", "26": "부산", "27": "대구", "28": "인천",
+  "29": "광주", "30": "대전", "31": "울산", "36": "세종",
+  "41": "경기", "42": "강원", "43": "충북", "44": "충남",
+  "45": "전북", "46": "전남", "47": "경북", "48": "경남",
+  "50": "제주",
+};
+const AUCTION_SIDO_REVERSE = Object.fromEntries(
+  Object.entries(AUCTION_SIDO_MAP).map(([k, v]) => [v, k]),
+);
+
+async function fetchAuctionFromKV(sidoFilter) {
+  if (!kv) return null;
+  if (sidoFilter) {
+    const code = AUCTION_SIDO_REVERSE[sidoFilter] || sidoFilter;
+    const items = await kv.get(`auction:${code}`);
+    if (!items) return null;
+    const meta = await kv.get("auction:meta");
+    return { items, meta };
+  }
+  const items = await kv.get("auction:all");
+  if (!items) return null;
+  const meta = await kv.get("auction:meta");
+  return { items, meta };
+}
+
+async function fetchCourtAuctionFallback() {
   const indexUrl = "https://www.courtauction.go.kr/pgj/index.on";
   const apiUrl =
     "https://www.courtauction.go.kr/pgj/pgj111/selectRletYrDspslStats.on";
@@ -800,7 +828,6 @@ async function fetchCourtAuctionItems() {
     "User-Agent": UA,
     "Accept-Language": "ko-KR,ko;q=0.9",
   };
-  // 1. index 진입으로 JSESSIONID/WMONID 발급
   const r1 = await axios.get(indexUrl, {
     headers: baseHeaders,
     timeout: 15000,
@@ -815,7 +842,6 @@ async function fetchCourtAuctionItems() {
   if (!cookieHeader.includes("JSESSIONID")) {
     throw new Error("JSESSIONID not issued");
   }
-  // 2. 주요 관심물건 호출
   const r2 = await axios.post(
     apiUrl,
     { dma_nonData: {} },
@@ -841,7 +867,6 @@ async function fetchCourtAuctionItems() {
     const saleDate =
       ymd.length === 8 ? `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}` : "";
     const yuchal = parseInt(x.yuchalCnt || "0", 10);
-    const status = yuchal > 0 ? `${yuchal}회 유찰` : "진행";
     return {
       caseNo: String(x.srnSaNo || ""),
       court: String(x.jiwonNm || ""),
@@ -857,8 +882,7 @@ async function fetchCourtAuctionItems() {
       saleDate,
       saleHour: String(x.maeHh1 || ""),
       yuchalCnt: yuchal,
-      status,
-      // 상세 페이지 링크: 사건번호 기반
+      status: yuchal > 0 ? `${yuchal}회 유찰` : "진행",
       detailUrl: `https://www.courtauction.go.kr/pgj/index.on?w2xPath=/pgj/ui/pgj100/PGJ152F00.xml&srnSaNo=${encodeURIComponent(
         x.srnSaNo || "",
       )}`,
@@ -869,17 +893,47 @@ async function fetchCourtAuctionItems() {
 app.get("/api/auction", async (req, res) => {
   const sido = req.query.sido || "";
   try {
-    // 12시간 캐싱 (메인페이지 매물 갱신 빈도 낮음, IP 차단 회피)
-    const all = await cached("auction_main", 12 * 60 * 60 * 1000, fetchCourtAuctionItems);
-    const data = sido ? all.filter((x) => x.sido === sido) : all;
+    const kvResult = await fetchAuctionFromKV(sido);
+    if (kvResult) {
+      const { items, meta } = kvResult;
+      return res.json({
+        ok: true,
+        data: items,
+        total: items.length,
+        filtered: items.length,
+        sido,
+        source: "crawl",
+        crawledAt: meta?.crawledAt || null,
+        regions: meta?.regions || null,
+      });
+    }
+    const all = await cached("auction_main", 12 * 60 * 60 * 1000, fetchCourtAuctionFallback);
+    const data = sido
+      ? all.filter((x) => x.sido === sido || x.sido.startsWith(sido))
+      : all;
     res.json({
       ok: true,
       data,
       total: all.length,
       filtered: data.length,
       sido,
-      note: "법원경매정보 메인페이지 '주요 관심물건' (전국 단일 리스트, 시도 필터는 결과 내 필터링)",
+      source: "fallback",
+      note: "KV 데이터 없음 — 메인페이지 '주요 관심물건'만 제공. GitHub Actions 크롤러 설정 필요.",
     });
+  } catch (e) {
+    res.json({ ok: false, error: e.message });
+  }
+});
+
+app.get("/api/auction/regions", (_, res) => {
+  res.json({ ok: true, regions: AUCTION_SIDO_MAP });
+});
+
+app.get("/api/auction/meta", async (_, res) => {
+  if (!kv) return res.json({ ok: false, error: "KV not configured" });
+  try {
+    const meta = await kv.get("auction:meta");
+    res.json({ ok: true, meta });
   } catch (e) {
     res.json({ ok: false, error: e.message });
   }

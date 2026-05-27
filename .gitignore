@@ -3,3 +3,5 @@ bun.lock
 .env
 .gstack/
 check-key.sh
+.vercel
+.env*
