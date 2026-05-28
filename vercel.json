@@ -13,8 +13,8 @@
       "schedule": "0 21 * * *"
     },
     {
-      "path": "/api/crawl-listings",
-      "schedule": "0 18 * * *"
+      "path": "/api/crawl-auction",
+      "schedule": "0 9 * * *"
     }
   ]
 }
