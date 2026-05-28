@@ -149,7 +149,32 @@ function parseCrawlItem(x) {
   };
 }
 
-const CRAWL_BATCH_SIZE = 5;
+const CRAWL_BATCH_SIZE = 2;
+const CRAWL_PAGE_SIZE = 20;
+const CRAWL_MAX_PAGES = 15;
+
+function delay(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+async function fetchRegionPaged(hdrs, code) {
+  const allItems = [];
+  let page = 1;
+  while (page <= CRAWL_MAX_PAGES) {
+    const r = await axios.post(CRAWL_SEARCH_URL, makeCrawlBody(code, page), {
+      headers: hdrs, timeout: 8000, validateStatus: () => true,
+    });
+    if (r.status !== 200) throw new Error(`HTTP ${r.status}`);
+    const rows = r.data?.data?.dlt_srchResult || [];
+    if (rows.length === 0) break;
+    allItems.push(...rows.map(parseCrawlItem));
+    const totalCnt = parseInt(
+      r.data?.data?.dma_pageInfo?.totalCnt || "0", 10,
+    );
+    if (page * CRAWL_PAGE_SIZE >= totalCnt) break;
+    page++;
+    await delay(500);
+  }
+  return allItems;
+}
 
 router.get("/api/crawl-auction", async (req, res) => {
   if (!kv) return res.json({ ok: false, error: "KV not configured" });
@@ -182,12 +207,7 @@ router.get("/api/crawl-auction", async (req, res) => {
       const code = sidoCodes[idx];
       const name = AUCTION_SIDO_MAP[code];
       try {
-        const r2 = await axios.post(CRAWL_SEARCH_URL, makeCrawlBody(code, 1), {
-          headers: hdrs, timeout: 4000, validateStatus: () => true,
-        });
-        if (r2.status !== 200) throw new Error(`HTTP ${r2.status}`);
-        const rows = r2.data?.data?.dlt_srchResult || [];
-        const items = rows.map(parseCrawlItem);
+        const items = await fetchRegionPaged(hdrs, code);
         await kv.set(`auction:${code}`, items, { ex: 172800 });
         regions[name] = items.length;
         results[name] = items.length;

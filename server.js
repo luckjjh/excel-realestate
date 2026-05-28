@@ -14,6 +14,7 @@ app.use(require("./routes/trades"));
 app.use(require("./routes/subscription"));
 app.use(require("./routes/chat"));
 app.use(require("./routes/auction"));
+app.use(require("./routes/listings"));
 
 app.get("/api/config", (_, res) => res.json({ hasApiKey: !!API_KEY }));
 
