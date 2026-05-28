@@ -55,37 +55,39 @@ function parseArticle(a) {
   };
 }
 
-async function fetchListings(cortarNo, realEstateType, tradeType) {
-  const items = [];
-  const MAX_PAGES = 5;
+async function fetchListingPage(cortarNo, realEstateType, tradeType) {
+  const r = await axios.get(NAVER_API, {
+    params: {
+      cortarNo, realEstateType, tradeType,
+      page: 1, articleState: "R", order: "rank",
+    },
+    headers: NAVER_HEADERS,
+    timeout: 5000,
+    validateStatus: () => true,
+  });
+  if (r.status === 429) return { items: [], rateLimited: true };
+  if (r.status !== 200) return { items: [], error: r.status };
+  const articles = r.data?.articleList || [];
+  return { items: articles.map(parseArticle) };
+}
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const r = await axios.get(NAVER_API, {
-      params: {
-        cortarNo,
-        realEstateType,
-        tradeType,
-        page,
-        articleState: "R",
-        order: "rank",
-      },
-      headers: NAVER_HEADERS,
-      timeout: 10000,
-      validateStatus: () => true,
-    });
-
-    if (r.status === 429) throw new Error("RATE_LIMITED");
-    if (r.status !== 200) throw new Error(`HTTP ${r.status}`);
-
-    const articles = r.data?.articleList || [];
-    if (articles.length === 0) break;
-    items.push(...articles.map(parseArticle));
-
-    if (articles.length < 20) break;
-    await delay(3000);
+async function fetchRegionParallel(cortarNo) {
+  const combos = [];
+  for (const re of CRAWL_RE_TYPES) {
+    for (const tr of CRAWL_TRADE_TYPES) combos.push({ re, tr });
   }
-
-  return items;
+  const results = await Promise.allSettled(
+    combos.map(({ re, tr }) => fetchListingPage(cortarNo, re, tr)),
+  );
+  const items = [];
+  let rateLimited = false;
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      if (r.value.rateLimited) rateLimited = true;
+      items.push(...(r.value.items || []));
+    }
+  }
+  return { items, rateLimited };
 }
 
 // --------------- 서빙 API ---------------
@@ -140,7 +142,7 @@ router.get("/api/listings/meta", async (_, res) => {
 
 const CRAWL_TRADE_TYPES = ["A1", "B1", "B2"];
 const CRAWL_RE_TYPES = ["APT", "OPST", "VL"];
-const CRAWL_BATCH_SIZE = 1;
+const CRAWL_BATCH_SIZE = 4;
 
 router.get("/api/crawl-listings", async (req, res) => {
   if (!kv) return res.json({ ok: false, error: "KV not configured" });
@@ -156,30 +158,13 @@ router.get("/api/crawl-listings", async (req, res) => {
     const idx = (startIdx + i) % areaCodes.length;
     const code = areaCodes[idx];
     const name = AREAS[code];
-    const areaItems = [];
 
-    for (const reType of CRAWL_RE_TYPES) {
-      for (const trType of CRAWL_TRADE_TYPES) {
-        try {
-          const items = await fetchListings(code, reType, trType);
-          areaItems.push(...items);
-          await delay(4000);
-        } catch (e) {
-          if (e.message === "RATE_LIMITED") {
-            results[name] = `RATE_LIMITED (partial ${areaItems.length})`;
-            break;
-          }
-        }
-      }
-      if (results[name]?.startsWith("RATE_LIMITED")) break;
-    }
+    const { items, rateLimited } = await fetchRegionParallel(code);
+    await kv.set(`listings:${code}`, items, { ex: 172800 });
+    regions[name] = items.length;
+    results[name] = rateLimited ? `${items.length} (partial)` : items.length;
 
-    if (!results[name]) {
-      results[name] = areaItems.length;
-    }
-
-    await kv.set(`listings:${code}`, areaItems, { ex: 172800 });
-    regions[name] = areaItems.length;
+    if (i < CRAWL_BATCH_SIZE - 1) await delay(300);
   }
 
   const nextIdx = (startIdx + CRAWL_BATCH_SIZE) % areaCodes.length;
