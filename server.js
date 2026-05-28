@@ -14,9 +14,19 @@ app.use(require("./routes/trades"));
 app.use(require("./routes/subscription"));
 app.use(require("./routes/chat"));
 app.use(require("./routes/auction"));
-app.use(require("./routes/listings"));
+try { app.use(require("./routes/listings")); } catch (e) { console.error("[listings] load failed:", e.message); }
 
 app.get("/api/config", (_, res) => res.json({ hasApiKey: !!API_KEY }));
+app.get("/api/debug-routes", (_, res) => {
+  const routes = [];
+  app._router.stack.forEach((mw) => {
+    if (mw.route) routes.push(mw.route.path);
+    else if (mw.name === "router" && mw.handle.stack) {
+      mw.handle.stack.forEach((r) => { if (r.route) routes.push(r.route.path); });
+    }
+  });
+  res.json({ routes });
+});
 
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
