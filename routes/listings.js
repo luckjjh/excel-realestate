@@ -144,6 +144,28 @@ const CRAWL_TRADE_TYPES = ["A1", "B1", "B2"];
 const CRAWL_RE_TYPES = ["APT", "OPST", "VL"];
 const CRAWL_BATCH_SIZE = 4;
 
+router.get("/api/test-naver", async (req, res) => {
+  const t0 = Date.now();
+  try {
+    const r = await axios.get(NAVER_API, {
+      params: { cortarNo: "1168010100", realEstateType: "APT", tradeType: "A1", page: 1, articleState: "R", order: "rank" },
+      headers: NAVER_HEADERS,
+      timeout: 8000,
+      validateStatus: () => true,
+    });
+    res.json({
+      ok: true,
+      status: r.status,
+      elapsed: Date.now() - t0,
+      bodyType: typeof r.data,
+      sample: typeof r.data === "object" ? Object.keys(r.data || {}) : String(r.data).slice(0, 200),
+      articleCount: r.data?.articleList?.length,
+    });
+  } catch (e) {
+    res.json({ ok: false, error: e.message, code: e.code, elapsed: Date.now() - t0 });
+  }
+});
+
 router.get("/api/crawl-listings", async (req, res) => {
   if (!kv) return res.json({ ok: false, error: "KV not configured" });
 
