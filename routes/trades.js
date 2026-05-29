@@ -126,7 +126,7 @@ router.get("/api/price-history", async (req, res) => {
   if (!area || !name) return res.json({ ok: false, error: "missing params" });
   try {
     const data = await cached(
-      `ph_${area}_${name}`, 60 * 60 * 1000,
+      `ph2_${area}_${name}`, 60 * 60 * 1000,
       async () => {
         const now = new Date();
         const months = [];
@@ -150,20 +150,22 @@ router.get("/api/price-history", async (req, res) => {
             const matched = raw.filter(
               (i) => String(i.aptNm || "").trim() === name.trim(),
             );
-            const prices = matched.map(
-              (i) => parseInt(String(i.dealAmount || "").replace(/[, ]/g, "")) || 0,
-            ).filter((p) => p > 0);
-            if (prices.length > 0) {
+            for (const i of matched) {
+              const price = parseInt(String(i.dealAmount || "").replace(/[, ]/g, "")) || 0;
+              if (price <= 0) continue;
+              const y = String(i.dealYear || "").padStart(4, "0");
+              const m = String(i.dealMonth || "").padStart(2, "0");
+              const d = String(i.dealDay || "").padStart(2, "0");
               results.push({
-                month: ym,
-                avg: Math.round(prices.reduce((s, p) => s + p, 0) / prices.length),
-                min: Math.min(...prices),
-                max: Math.max(...prices),
-                count: prices.length,
+                date: `${y}-${m}-${d}`,
+                price,
+                area: parseFloat(i.excluUseAr) || 0,
+                floor: parseInt(i.floor) || 0,
               });
             }
           } catch {}
         }
+        results.sort((a, b) => a.date.localeCompare(b.date));
         return results;
       },
     );
